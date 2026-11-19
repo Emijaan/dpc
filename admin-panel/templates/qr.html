@@ -1,0 +1,21 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>AK DeviceLock - Enrollment QR</title>
+<style>body{font-family:sans-serif;margin:24px;background:#f5f6f8}.box{background:#fff;display:inline-block;padding:16px;border:1px solid #ddd}</style></head>
+<body>
+<h2>Enroll a device (QR Provisioning)</h2>
+<ol>
+<li>Factory-reset the phone. On the first (welcome) screen tap the same spot 6 times.</li>
+<li>Connect to Wi-Fi when asked, then scan this QR code.</li>
+<li>The phone downloads AK DeviceLock, becomes Device Owner and registers itself automatically.</li>
+</ol>
+<div class="box">{{ svg|safe }}</div>
+<p>Server URL embedded in QR: <code>{{ base_url }}</code><br>
+APK URL: <a href="{{ apk_url }}">{{ apk_url }}</a></p>
+<p>Switch QR Server URL:
+<a href="?base_url=https://dpc.apinfotechandcybersolution.com">https://dpc.apinfotechandcybersolution.com</a> |
+<a href="?base_url=http://dpc.apinfotechandcybersolution.com">http://dpc.apinfotechandcybersolution.com</a> |
+<a href="?base_url=http://3.106.214.246">http://3.106.214.246</a>
+</p>
+<p><b>Keep this page private:</b> the code contains the enrollment key.</p>
+<p><a href="{% url 'panel' %}">Back to panel</a></p>
+</body></html>

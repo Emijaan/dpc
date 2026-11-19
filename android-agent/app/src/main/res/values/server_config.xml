@@ -1,0 +1,5 @@
+<resources>
+    <!-- Public key only (safe to ship). Generate with: python manage.py init_signing_key -->
+    <string name="command_public_key" translatable="false">MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEUluJufTzaeizGc7byhAlhPJSfkJIy24bSzFOS9itJDftl/8fhkWXILU3fRZn6gIBJCCnqfSVM8X8A8Zz+ce2GQ==</string>
+</resources>
+

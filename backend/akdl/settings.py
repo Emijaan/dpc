@@ -45,8 +45,28 @@ TEMPLATES = [{
 }]
 WSGI_APPLICATION = "akdl.wsgi.application"
 
-# SQLite for development. Production: switch to PostgreSQL via env (see deployment docs).
-DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": BASE_DIR / "db.sqlite3"}}
+# SQLite for development; PostgreSQL when AKDL_DB_NAME is set (production).
+if os.environ.get("AKDL_DB_NAME"):
+    DATABASES = {"default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.environ["AKDL_DB_NAME"],
+        "USER": os.environ.get("AKDL_DB_USER", ""),
+        "PASSWORD": os.environ.get("AKDL_DB_PASSWORD", ""),
+        "HOST": os.environ.get("AKDL_DB_HOST", "127.0.0.1"),
+        "PORT": os.environ.get("AKDL_DB_PORT", "5432"),
+        "CONN_MAX_AGE": 60,
+    }}
+else:
+    DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": BASE_DIR / "db.sqlite3"}}
+
+STATIC_ROOT = os.environ.get("AKDL_STATIC_ROOT", str(BASE_DIR / "staticfiles"))
+CSRF_TRUSTED_ORIGINS = [o for o in os.environ.get("AKDL_CSRF_ORIGINS", "").split(",") if o]
+
+# Device provisioning (QR). The APK lives outside the repo.
+PUBLIC_BASE_URL = os.environ.get("AKDL_PUBLIC_BASE_URL", "http://127.0.0.1:8000")
+APK_PATH = os.environ.get("AKDL_APK_PATH", str(BASE_DIR / "secrets" / "akdevicelock.apk"))
+# base64url (no padding) SHA-256 of the APK signing certificate.
+APK_CERT_SHA256 = os.environ.get("AKDL_APK_CERT_SHA256", "")
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
@@ -71,8 +91,9 @@ REST_FRAMEWORK = {
 }
 
 if not DEBUG:
-    SECURE_SSL_REDIRECT = True
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
-    SECURE_HSTS_SECONDS = 31536000
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    if os.environ.get("AKDL_SSL_REDIRECT", "0") == "1":
+        SECURE_SSL_REDIRECT = True
+        SESSION_COOKIE_SECURE = True
+        CSRF_COOKIE_SECURE = True
+        SECURE_HSTS_SECONDS = 31536000

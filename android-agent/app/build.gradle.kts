@@ -3,6 +3,9 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+// Release signing comes from environment variables so no secret is stored in the repo.
+val ksPath: String? = System.getenv("AKDL_KEYSTORE")
+
 android {
     namespace = "com.akdevicelock.dpc"
     compileSdk = 35
@@ -10,17 +13,33 @@ android {
     defaultConfig {
         applicationId = "com.akdevicelock.dpc"
         minSdk = 28 // Vivo 1902 test device runs Android 9
-        targetSdk = 30 // Android 11 test device; raise after compatibility testing
-        versionCode = 1
-        versionName = "0.1.0"
+        targetSdk = 30 // raise after compatibility testing
+        versionCode = 2
+        versionName = "0.2.0"
+    }
+    signingConfigs {
+        if (ksPath != null) {
+            create("release") {
+                storeFile = file(ksPath)
+                storePassword = System.getenv("AKDL_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("AKDL_KEY_ALIAS") ?: "akdl"
+                keyPassword = System.getenv("AKDL_KEYSTORE_PASSWORD")
+            }
+        }
     }
     buildTypes {
-        release { isMinifyEnabled = false }
+        release {
+            isMinifyEnabled = false
+            if (ksPath != null) signingConfig = signingConfigs.getByName("release")
+        }
+    }
+    buildFeatures { buildConfig = true }
+    lint {
+        disable += "ExpiredTargetSdkVersion"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    buildFeatures { buildConfig = true }
     kotlinOptions { jvmTarget = "17" }
 }

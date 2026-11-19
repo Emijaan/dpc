@@ -122,3 +122,28 @@ class ApiFlowTests(TestCase):
         from audit.models import DeviceAuditLog
         events = set(DeviceAuditLog.objects.values_list("event", flat=True))
         self.assertTrue({"DEVICE_REGISTERED", "COMMAND_CREATED", "COMMAND_DELIVERED"} <= events)
+
+    def test_qr_provisioning_payload_and_page(self):
+        from devices.panel import provisioning_payload
+        with self.settings(APK_CERT_SHA256="abc123_checksum", PUBLIC_BASE_URL="https://dpc.apinfotechandcybersolution.com"):
+            p = provisioning_payload()
+            self.assertEqual(
+                p["android.app.extra.PROVISIONING_DEVICE_ADMIN_COMPONENT_NAME"],
+                "com.akdevicelock.dpc/com.akdevicelock.dpc.deviceadmin.AkDeviceAdminReceiver",
+            )
+            self.assertEqual(
+                p["android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_DOWNLOAD_LOCATION"],
+                "https://dpc.apinfotechandcybersolution.com/download/akdevicelock.apk",
+            )
+            self.assertEqual(
+                p["android.app.extra.PROVISIONING_DEVICE_ADMIN_SIGNATURE_CHECKSUM"],
+                "abc123_checksum",
+            )
+            self.assertEqual(
+                p["android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE"]["server_url"],
+                "https://dpc.apinfotechandcybersolution.com",
+            )
+            self.client.force_login(get_user_model().objects.get(username="op"))
+            resp = self.client.get("/panel/qr/")
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn(b"<svg", resp.content)
