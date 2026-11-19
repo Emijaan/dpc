@@ -4,7 +4,7 @@ from datetime import timedelta
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
 
@@ -22,6 +22,7 @@ def register(client, ident="test-device-0001"):
     return r
 
 
+@override_settings(ENROLLMENT_KEY="dev-enrollment-key", ALLOWED_HOSTS=["*"])
 class ApiFlowTests(TestCase):
     def setUp(self):
         self.op = APIClient()
