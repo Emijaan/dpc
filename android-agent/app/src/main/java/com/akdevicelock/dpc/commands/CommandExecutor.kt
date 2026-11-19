@@ -2,6 +2,7 @@ package com.akdevicelock.dpc.commands
 
 import android.app.admin.DevicePolicyManager
 import android.content.Context
+import com.akdevicelock.dpc.lock.EnrollmentProtection
 import com.akdevicelock.dpc.lock.KioskRestrictionManager
 import com.akdevicelock.dpc.lock.LockResult
 import com.akdevicelock.dpc.networking.ApiClient
@@ -55,8 +56,9 @@ class CommandExecutor(private val context: Context, private val api: ApiClient) 
         is LockResult.Failure -> false to r.reason
     }
 
-    /** Authorized release, after the server acknowledged: forget credentials and give up Device Owner. */
+    /** Authorized release, after the server acknowledged: clear protections, forget credentials, give up Device Owner. */
     private fun finalizeRelease() {
+        EnrollmentProtection.releaseAll(context)
         val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
         SecureStore(context).clear()
         state.reset()

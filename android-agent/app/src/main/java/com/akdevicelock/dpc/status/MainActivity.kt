@@ -18,6 +18,7 @@ import com.akdevicelock.dpc.commands.CommandPollService
 import com.akdevicelock.dpc.deviceadmin.AkDeviceAdminReceiver
 import com.akdevicelock.dpc.enrollment.Enrollment
 import com.akdevicelock.dpc.lock.DevicePolicyLockManager
+import com.akdevicelock.dpc.lock.EnrollmentProtection
 import com.akdevicelock.dpc.lock.KioskRestrictionManager
 import com.akdevicelock.dpc.lock.LockResult
 import java.text.DateFormat
@@ -35,6 +36,7 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         renderedKey = ""
+        EnrollmentProtection.enforce(this)
         if (AppState(this).isRegistered) CommandPollService.start(this)
         handler.post(refresh)
     }
@@ -81,6 +83,7 @@ class MainActivity : Activity() {
         val root = root()
         root.addView(TextView(this).apply { text = "AK DeviceLock"; textSize = 28f })
         val owner = AkDeviceAdminReceiver.isDeviceOwner(this)
+        val resetBlocked = EnrollmentProtection.isFactoryResetBlocked(this)
         root.addView(TextView(this).apply {
             textSize = 15f
             setPadding(0, pad / 2, 0, pad / 2)
@@ -92,6 +95,7 @@ class MainActivity : Activity() {
                 Registration: ${if (state.isRegistered) "registered" else "not registered"}
                 Connection: ${state.connection}
                 Management: ${if (owner) "managed" else "unmanaged"}
+                Factory reset: ${if (resetBlocked) "BLOCKED" else "not blocked"}
                 Restriction: none
                 Last sync: ${fmt(state.lastSync)}
                 Last command: ${state.lastCommand}

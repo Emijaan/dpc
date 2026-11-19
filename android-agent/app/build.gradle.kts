@@ -14,8 +14,8 @@ android {
         applicationId = "com.akdevicelock.dpc"
         minSdk = 28 // Vivo 1902 test device runs Android 9
         targetSdk = 30 // raise after compatibility testing
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 3
+        versionName = "0.3.0"
     }
     signingConfigs {
         if (ksPath != null) {

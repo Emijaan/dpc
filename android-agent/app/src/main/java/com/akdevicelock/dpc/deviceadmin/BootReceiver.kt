@@ -5,13 +5,15 @@ import android.content.Context
 import android.content.Intent
 import com.akdevicelock.dpc.commands.AppState
 import com.akdevicelock.dpc.commands.CommandPollService
+import com.akdevicelock.dpc.lock.EnrollmentProtection
 import com.akdevicelock.dpc.lock.RestrictionState
 import com.akdevicelock.dpc.status.MainActivity
 
-/** After reboot: resume polling and re-show the restriction screen if one was applied. */
+/** After reboot: enforce factory-reset protection, resume polling, and re-show restriction screen if locked. */
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
+        EnrollmentProtection.enforce(context)
         if (AppState(context).isRegistered) CommandPollService.start(context)
         if (RestrictionState(context).kioskApplied) {
             context.startActivity(

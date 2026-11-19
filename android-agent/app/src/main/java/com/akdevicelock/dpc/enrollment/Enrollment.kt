@@ -5,6 +5,7 @@ import android.os.Build
 import com.akdevicelock.dpc.BuildConfig
 import com.akdevicelock.dpc.commands.AppState
 import com.akdevicelock.dpc.deviceadmin.AkDeviceAdminReceiver
+import com.akdevicelock.dpc.lock.EnrollmentProtection
 import com.akdevicelock.dpc.networking.ApiClient
 import com.akdevicelock.dpc.security.SecureStore
 import org.json.JSONObject
@@ -22,6 +23,7 @@ object Enrollment {
     /** Blocking. Returns null on success, otherwise an error message. Call off the main thread. */
     fun register(context: Context, serverUrl: String, enrollmentKey: String): String? {
         if (!AkDeviceAdminReceiver.isDeviceOwner(context)) return "App is not Device Owner"
+        EnrollmentProtection.enforce(context)
         val state = AppState(context)
         state.serverUrl = serverUrl
         return try {

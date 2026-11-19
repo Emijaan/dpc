@@ -4,6 +4,7 @@ import android.app.admin.DevicePolicyManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.UserManager
 import com.akdevicelock.dpc.deviceadmin.AkDeviceAdminReceiver
 import com.akdevicelock.dpc.status.MainActivity
 
@@ -11,7 +12,8 @@ import com.akdevicelock.dpc.status.MainActivity
  * Persistent restriction using Lock Task Mode (official Device Owner API).
  * The app whitelists itself and the system dialer (for emergency calls) and disables
  * all other lock-task features (no home, recents, notifications, status bar actions).
- * Unlock removes the whitelist, which ends lock task mode. Nothing else is touched.
+ * Unlock removes the whitelist, which ends lock task mode, while keeping enrollment
+ * protections (DISALLOW_FACTORY_RESET, DISALLOW_SAFE_BOOT, uninstall block) active.
  */
 class KioskRestrictionManager(private val context: Context) : LockManager {
     override val name = "KioskRestrictionManager"
@@ -26,6 +28,8 @@ class KioskRestrictionManager(private val context: Context) : LockManager {
     override fun lock(): LockResult {
         if (!isSupported()) return LockResult.Failure("Not Device Owner")
         return try {
+            EnrollmentProtection.enforce(context)
+            dpm.addUserRestriction(admin, UserManager.DISALLOW_APPS_CONTROL)
             val packages = linkedSetOf(context.packageName)
             dialerPackage()?.let { packages.add(it) }
             dpm.setLockTaskPackages(admin, packages.toTypedArray())
@@ -46,6 +50,8 @@ class KioskRestrictionManager(private val context: Context) : LockManager {
         return try {
             state.kioskApplied = false
             dpm.setLockTaskPackages(admin, emptyArray())
+            dpm.clearUserRestriction(admin, UserManager.DISALLOW_APPS_CONTROL)
+            EnrollmentProtection.enforce(context)
             LockResult.Success
         } catch (e: SecurityException) {
             LockResult.Failure("SecurityException: ${e.message}")
@@ -60,4 +66,3 @@ class KioskRestrictionManager(private val context: Context) : LockManager {
             ?.takeIf { it != "android" }
     }
 }
-
