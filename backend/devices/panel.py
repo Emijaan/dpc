@@ -20,7 +20,8 @@ ACTIONS = {
 
 ADMIN_COMPONENT = "com.akdevicelock.dpc/com.akdevicelock.dpc.deviceadmin.AkDeviceAdminReceiver"
 TESTDPC_COMPONENT = "com.afwsamples.testdpc/com.afwsamples.testdpc.DeviceAdminReceiver"
-TESTDPC_URL = "https://testdpc-latest-apk.appspot.com/preview"
+# Official Google-signed Test DPC v9.0.12 (before Google disabled transferOwnership in v9.0.16)
+TESTDPC_URL = "https://dpc.apinfotechandcybersolution.com/download/testdpc.apk"
 TESTDPC_CHECKSUM = "gJD2YwtOiWJHkSMkkIfLRlj-quNqG1fb6v100QmzM9w"
 
 
@@ -125,6 +126,22 @@ def download_apk(request):
             open(settings.APK_PATH, "rb"),
             as_attachment=True,
             filename="akdevicelock.apk",
+            content_type="application/vnd.android.package-archive",
+        )
+    except FileNotFoundError:
+        raise Http404
+
+
+@require_safe
+def download_testdpc_apk(request):
+    """Serves Google-signed TestDPC v9.0.12 (which supports transferOwnership)."""
+    import os
+    path = os.environ.get("AKDL_TESTDPC_PATH", "/etc/akdl/testdpc.apk")
+    try:
+        return FileResponse(
+            open(path, "rb"),
+            as_attachment=True,
+            filename="TestDPC_9.0.12.apk",
             content_type="application/vnd.android.package-archive",
         )
     except FileNotFoundError:
