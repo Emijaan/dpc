@@ -48,6 +48,7 @@ code{background:#1e293b;color:#93c5fd;padding:2px 6px;border-radius:5px;font-siz
   </div>
   <div>
     <a class="navbtn" href="{% url 'panel_qr' %}">+ Enroll New Device (QR Setup)</a>
+    <form method="post" action="{% url 'admin:logout' %}" style="display:inline;margin-left:6px">{% csrf_token %}<input type="hidden" name="next" value="/panel/"><button class="btn btn-rel" style="padding:10px 14px;font-size:13.5px">Logout</button></form>
   </div>
 </div>
 
