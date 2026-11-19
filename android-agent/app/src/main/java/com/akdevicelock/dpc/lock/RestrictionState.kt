@@ -2,10 +2,13 @@ package com.akdevicelock.dpc.lock
 
 import android.content.Context
 
-/** Persists only restrictions applied by AK DeviceLock, so unlock/release reverses only our own changes. */
+/**
+ * Persists restrictions applied by AK DeviceLock in Device-Protected Storage so the lock state
+ * is available during Direct Boot (before the user unlocks their pattern/PIN after a reboot).
+ */
 class RestrictionState(context: Context) {
-    private val prefs = context.applicationContext
-        .getSharedPreferences("restriction_state", Context.MODE_PRIVATE)
+    private val dpContext = context.applicationContext.createDeviceProtectedStorageContext()
+    private val prefs = dpContext.getSharedPreferences("restriction_state_dp", Context.MODE_PRIVATE)
 
     var kioskApplied: Boolean
         get() = prefs.getBoolean("kiosk_applied", false)

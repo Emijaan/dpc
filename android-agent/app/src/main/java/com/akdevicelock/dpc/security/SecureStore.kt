@@ -10,9 +10,10 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
-/** Stores the device credential encrypted with a non-exportable Android Keystore AES key. */
+/** Stores the device credential encrypted with a non-exportable Android Keystore AES key in Device-Protected Storage. */
 class SecureStore(context: Context) {
-    private val prefs = context.applicationContext.getSharedPreferences("secure_store", Context.MODE_PRIVATE)
+    private val dpContext = context.applicationContext.createDeviceProtectedStorageContext()
+    private val prefs = dpContext.getSharedPreferences("secure_store_dp", Context.MODE_PRIVATE)
 
     private fun key(): SecretKey {
         val ks = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }

@@ -3,9 +3,10 @@ package com.akdevicelock.dpc.commands
 import android.content.Context
 import org.json.JSONObject
 
-/** Non-secret app state: registration identity, sync info, replay protection records. */
+/** Non-secret app state stored in Device-Protected Storage so it works during Direct Boot. */
 class AppState(context: Context) {
-    private val prefs = context.applicationContext.getSharedPreferences("app_state", Context.MODE_PRIVATE)
+    private val dpContext = context.applicationContext.createDeviceProtectedStorageContext()
+    private val prefs = dpContext.getSharedPreferences("app_state_dp", Context.MODE_PRIVATE)
 
     var serverUrl: String
         get() = prefs.getString("server_url", "") ?: ""
