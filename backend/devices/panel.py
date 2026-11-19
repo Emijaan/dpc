@@ -5,7 +5,7 @@ from django.conf import settings
 from django.contrib.admin.views.decorators import staff_member_required
 from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.http import require_POST, require_safe
 
 from commands.models import DeviceCommand
 from commands.services import create_command, expire_stale
@@ -61,7 +61,7 @@ def provisioning_payload(base_url: str | None = None) -> dict:
 
 
 @staff_member_required
-@require_GET
+@require_safe
 def panel_qr(request):
     if not settings.APK_CERT_SHA256:
         return HttpResponse("APK certificate checksum not configured (AKDL_APK_CERT_SHA256).", status=503)
@@ -74,7 +74,7 @@ def panel_qr(request):
     return render(request, "qr.html", {"svg": svg, "base_url": req_base, "apk_url": payload_dict["android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_DOWNLOAD_LOCATION"]})
 
 
-@require_GET
+@require_safe
 def download_apk(request):
     """Public: the provisioning flow downloads this before the device has any credential."""
     try:
