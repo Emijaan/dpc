@@ -13,7 +13,7 @@ def command_payload(c: DeviceCommand) -> dict:
     return {
         "command_id": str(c.id), "device_id": str(c.device_id), "command_type": c.command_type,
         "issued_at": int(c.issued_at.timestamp()), "expires_at": int(c.expires_at.timestamp()),
-        "nonce": c.nonce, "signature": c.signature, "reason": c.reason,
+        "nonce": c.nonce, "key_id": c.key_id, "signature": c.signature, "reason": c.reason,
     }
 
 

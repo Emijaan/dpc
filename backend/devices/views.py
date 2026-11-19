@@ -14,6 +14,7 @@ from commands.services import create_command, expire_stale
 from devices.auth import DeviceTokenAuthentication, IsDevice
 from devices.models import Device
 from notifications.services import notify_commands_available
+from roles.permissions import HasPermissionCode
 
 
 class DeviceInfoSerializer(serializers.Serializer):
@@ -106,12 +107,17 @@ class RenewTokenView(DeviceBase):
 
 
 class OperatorBase(APIView):
-    """Single operator (Django staff user). No role hierarchy."""
+    """RBAC-protected operator base view."""
+    permission_classes = [HasPermissionCode]
+    required_permission = "devices.view"
+
     def get_device(self, device_id) -> Device:
         return get_object_or_404(Device, pk=device_id)
 
 
 class DeviceInfoView(OperatorBase):
+    required_permission = "devices.view"
+
     def get(self, request, device_id):
         device = self.get_device(device_id)
         data = device_dict(device)
@@ -124,6 +130,7 @@ class DeviceInfoView(OperatorBase):
 
 class OperatorCommandView(OperatorBase):
     command_type = None
+    required_permission = "devices.sync"
 
     def post(self, request, device_id):
         device = self.get_device(device_id)
@@ -137,24 +144,28 @@ class OperatorCommandView(OperatorBase):
             return Response({"command_id": str(existing.id), "status": existing.command_status,
                              "duplicate": True})
         cmd = create_command(device, self.command_type, request.data.get("reason", ""),
-                             request.data.get("ttl_seconds"))
+                             request.data.get("ttl_seconds"), request=request)
         fcm_sent = notify_commands_available(device)
         return Response({"command_id": str(cmd.id), "status": cmd.command_status,
-                         "device_online": device.is_online, "fcm_notified": fcm_sent},
-                        status=status.HTTP_201_CREATED)
+                         "key_id": cmd.key_id, "device_online": device.is_online,
+                         "fcm_notified": fcm_sent}, status=status.HTTP_201_CREATED)
 
 
 class LockView(OperatorCommandView):
     command_type = DeviceCommand.Type.LOCK
+    required_permission = "devices.lock"
 
 
 class UnlockView(OperatorCommandView):
     command_type = DeviceCommand.Type.UNLOCK
+    required_permission = "devices.unlock"
 
 
 class ReleaseView(OperatorCommandView):
     command_type = DeviceCommand.Type.RELEASE
+    required_permission = "devices.release"
 
 
 class SyncCommandView(OperatorCommandView):
     command_type = DeviceCommand.Type.SYNC
+    required_permission = "devices.sync"

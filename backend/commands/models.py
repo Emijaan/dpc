@@ -28,6 +28,7 @@ class DeviceCommand(models.Model):
     executed_at = models.DateTimeField(null=True, blank=True)
     execution_result = models.CharField(max_length=300, blank=True)
     nonce = models.CharField(max_length=64)
+    key_id = models.CharField(max_length=64, blank=True, default="")
     signature = models.TextField(blank=True)
 
     class Meta:

@@ -3,24 +3,39 @@ package com.akdevicelock.dpc.security
 import android.content.Context
 import android.util.Base64
 import com.akdevicelock.dpc.R
+import com.akdevicelock.dpc.commands.AppState
 import com.akdevicelock.dpc.commands.Command
 import java.security.KeyFactory
 import java.security.Signature
 import java.security.spec.X509EncodedKeySpec
 import java.util.UUID
 
-/** Validates a command. Returns null when valid, otherwise the rejection reason. */
+/** Validates a command against distributed public keys, revocation lists, expiry, and device binding. */
 object CommandVerifier {
     val ALLOWED_TYPES = setOf("DEVICE_LOCK", "DEVICE_UNLOCK", "DEVICE_STATUS", "DEVICE_SYNC", "DEVICE_RELEASE")
     private const val MAX_TTL = 7L * 24 * 3600
     private const val MAX_CLOCK_SKEW = 300L
 
-    fun canonical(c: Command): ByteArray =
-        listOf(c.commandId, c.deviceId, c.commandType, c.issuedAt.toString(), c.expiresAt.toString(),
-            c.nonce, c.reason).joinToString("|").toByteArray(Charsets.UTF_8)
+    fun canonical(c: Command): ByteArray {
+        val fields = mutableListOf(
+            c.commandId, c.deviceId, c.commandType,
+            c.issuedAt.toString(), c.expiresAt.toString(),
+            c.nonce, c.reason
+        )
+        if (c.keyId.isNotEmpty()) fields.add(c.keyId)
+        return fields.joinToString("|").toByteArray(Charsets.UTF_8)
+    }
 
-    fun verify(context: Context, c: Command, myDeviceId: String, nowSeconds: Long): String? =
-        verifyWithKey(context.getString(R.string.command_public_key), c, myDeviceId, nowSeconds)
+    fun verify(context: Context, c: Command, myDeviceId: String, nowSeconds: Long): String? {
+        val state = AppState(context)
+        if (c.keyId.isNotEmpty() && state.isKeyRevoked(c.keyId)) return "revoked_key"
+        val pubB64 = when {
+            c.keyId.isNotEmpty() -> state.getPublicKeyForId(c.keyId)
+                ?: if (!state.hasKeyBundle()) context.getString(R.string.command_public_key) else return "unknown_key"
+            else -> context.getString(R.string.command_public_key)
+        }
+        return verifyWithKey(pubB64, c, myDeviceId, nowSeconds)
+    }
 
     fun verifyWithKey(publicKeyB64: String, c: Command, myDeviceId: String, nowSeconds: Long): String? {
         if (c.commandType !in ALLOWED_TYPES) return "unauthorized_command_type"
@@ -46,4 +61,3 @@ object CommandVerifier {
         }
     } catch (e: Exception) { false }
 }
-

@@ -26,7 +26,7 @@ def register(client, ident="test-device-0001"):
 class ApiFlowTests(TestCase):
     def setUp(self):
         self.op = APIClient()
-        u = get_user_model().objects.create_user("op", password="x-strong-pass-123", is_staff=True)
+        u = get_user_model().objects.create_user("op", password="x-strong-pass-123", is_staff=True, is_superuser=True)
         self.op.force_authenticate(u)
         self.dev = APIClient()
         r = register(self.dev)
@@ -57,8 +57,11 @@ class ApiFlowTests(TestCase):
         c = p[0]
         # Verify the signature like the Android app will.
         pub = serialization.load_der_public_key(base64.b64decode(signing.public_key_b64()))
-        payload = "|".join([c["command_id"], c["device_id"], c["command_type"], str(c["issued_at"]),
-                            str(c["expires_at"]), c["nonce"], c["reason"]]).encode()
+        fields = [c["command_id"], c["device_id"], c["command_type"], str(c["issued_at"]),
+                  str(c["expires_at"]), c["nonce"], c["reason"]]
+        if c.get("key_id"):
+            fields.append(c["key_id"])
+        payload = "|".join(fields).encode()
         pub.verify(base64.b64decode(c["signature"]), payload, ec.ECDSA(hashes.SHA256()))
         # Not shown as locked until device reports success.
         self.assertEqual(Device.objects.get(pk=self.device_id).restriction_status, "NONE")
@@ -161,3 +164,90 @@ class ApiFlowTests(TestCase):
         from notifications.services import notify_commands_available
         dev = Device.objects.get(pk=self.device_id)
         self.assertFalse(notify_commands_available(dev))
+
+
+class RbacAndKeyManagementTests(TestCase):
+    def setUp(self):
+        from roles.permissions import ensure_default_rbac
+        from roles.models import AccountRole, Role
+        ensure_default_rbac()
+        U = get_user_model()
+        self.super_user = U.objects.create_user("sa", password="StrongPass!123", is_staff=True, is_superuser=True)
+        self.admin_user = U.objects.create_user("adm", password="StrongPass!123", is_staff=True)
+        self.op_user = U.objects.create_user("oper", password="StrongPass!123", is_staff=True)
+        self.viewer_user = U.objects.create_user("view", password="StrongPass!123", is_staff=True)
+        AccountRole.objects.create(user=self.admin_user, role=Role.objects.get(name="ADMIN"))
+        AccountRole.objects.create(user=self.op_user, role=Role.objects.get(name="OPERATOR"))
+        AccountRole.objects.create(user=self.viewer_user, role=Role.objects.get(name="VIEWER"))
+
+        self.dev = APIClient()
+        r = register(self.dev, "rbac-device-0001")
+        self.device_id = r.data["device_id"]
+        self.dev.credentials(HTTP_AUTHORIZATION="Device " + r.data["device_token"])
+
+    def test_viewer_read_only_and_operator_restrictions(self):
+        vc = APIClient(); vc.force_authenticate(self.viewer_user)
+        self.assertEqual(vc.get(f"/api/v1/devices/{self.device_id}/").status_code, 200)
+        self.assertEqual(vc.post(f"/api/v1/devices/{self.device_id}/lock/").status_code, 403)
+        self.assertEqual(vc.get("/api/v1/keys/").status_code, 403)
+
+        oc = APIClient(); oc.force_authenticate(self.op_user)
+        self.assertEqual(oc.post(f"/api/v1/devices/{self.device_id}/lock/").status_code, 201)
+        self.assertEqual(oc.post(f"/api/v1/devices/{self.device_id}/release/").status_code, 403)
+        self.assertEqual(oc.post("/api/v1/keys/rotate/").status_code, 403)
+
+        ac = APIClient(); ac.force_authenticate(self.admin_user)
+        self.assertEqual(ac.get("/api/v1/keys/").status_code, 200)
+        self.assertEqual(ac.post("/api/v1/keys/rotate/").status_code, 403)
+
+    def test_custom_role_permission_revocation_and_account_deactivation(self):
+        sc = APIClient(); sc.force_authenticate(self.super_user)
+        r = sc.post("/api/v1/roles/", {"name": "LOCK_ONLY", "permissions": ["devices.view", "devices.lock"]}, format="json")
+        self.assertEqual(r.status_code, 201)
+        rid = r.data["id"]
+        u = get_user_model().objects.create_user("custom_op", password="StrongPass!123", is_staff=True)
+        sc.post(f"/api/v1/accounts/{u.id}/roles/", {"role_ids": [rid]}, format="json")
+        cc = APIClient(); cc.force_authenticate(u)
+        self.assertEqual(cc.post(f"/api/v1/devices/{self.device_id}/lock/").status_code, 201)
+        # Revoke devices.lock permission
+        sc.post(f"/api/v1/roles/{rid}/permissions/", {"revoke": ["devices.lock"]}, format="json")
+        self.assertEqual(cc.post(f"/api/v1/devices/{self.device_id}/lock/").status_code, 403)
+        # Deactivate account
+        sc.post(f"/api/v1/accounts/{u.id}/status/", {"is_active": False}, format="json")
+        u.refresh_from_db()
+        cc.force_authenticate(u)
+        self.assertEqual(cc.get(f"/api/v1/devices/{self.device_id}/").status_code, 403)
+
+    def test_key_rotation_revocation_and_device_public_key_registration(self):
+        sc = APIClient(); sc.force_authenticate(self.super_user)
+        # Issue lock command with key v1
+        cmd_r = sc.post(f"/api/v1/devices/{self.device_id}/lock/")
+        k1 = cmd_r.data["key_id"]
+        # Rotate key -> v2 active, v1 rotated
+        rot = sc.post("/api/v1/keys/rotate/", {"category": "COMMAND"}, format="json")
+        self.assertEqual(rot.status_code, 201)
+        k2 = rot.data["key_id"]
+        self.assertNotEqual(k1, k2)
+        # Never expose private key material
+        keys_resp = sc.get("/api/v1/keys/").data
+        self.assertNotIn("private_key_ref", keys_resp["signing_keys"][0])
+        # Device fetches public key bundle (sees both k1 and k2)
+        pub_bundle = self.dev.get("/api/v1/keys/public/").data
+        valid_ids = {x["key_id"] for x in pub_bundle["valid_keys"]}
+        self.assertIn(k1, valid_ids)
+        self.assertIn(k2, valid_ids)
+        # Revoke k1 -> pending command signed by k1 expires and k1 moves to revoked_key_ids
+        sc.post(f"/api/v1/keys/{k1}/revoke/", {"reason": "compromised"}, format="json")
+        self.assertEqual(DeviceCommand.objects.get(pk=cmd_r.data["command_id"]).command_status, "EXPIRED")
+        self.assertIn(k1, self.dev.get("/api/v1/keys/public/").data["revoked_key_ids"])
+
+        # Device generates ECDSA P-256 key pair and registers/renews its public key
+        priv = ec.generate_private_key(ec.SECP256R1())
+        pub_b64 = base64.b64encode(
+            priv.public_key().public_bytes(serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo)
+        ).decode()
+        reg = self.dev.post(f"/api/v1/devices/{self.device_id}/keys/register/", {"public_key_b64": pub_b64}, format="json")
+        self.assertEqual(reg.status_code, 201)
+        ren = self.dev.post(f"/api/v1/devices/{self.device_id}/keys/renew/", {"public_key_b64": pub_b64}, format="json")
+        self.assertEqual(ren.status_code, 201)
+        self.assertEqual(ren.data["version"], 2)

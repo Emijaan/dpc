@@ -3,46 +3,63 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta http-equiv="refresh" content="6">
+<meta http-equiv="refresh" content="12">
 <title>AK DeviceLock • Enterprise Command Center</title>
 <style>
 :root{--bg:#070b14;--card:#111827;--border:#1f2937;--text:#f8fafc;--muted:#94a3b8;--blue:#2563eb;--green:#059669;--red:#dc2626;--amber:#d97706}
 *{box-sizing:border-box}
 body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:0;padding:24px;background:var(--bg);color:var(--text)}
-.topbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;background:#131c33;border:1px solid var(--blue);border-radius:14px;padding:16px 22px;margin-bottom:20px}
-.brand h1{margin:0;font-size:22px;display:flex;align-items:center;gap:8px}
+.topbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;background:#131c33;border:1px solid var(--blue);border-radius:14px;padding:16px 22px;margin-bottom:16px}
+.brand h1{margin:0;font-size:21px}
 .brand p{margin:4px 0 0;color:var(--muted);font-size:13px}
-.navbtn{display:inline-block;background:var(--blue);color:#fff;text-decoration:none;padding:10px 16px;border-radius:10px;font-weight:600;font-size:14px}
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:20px}
+.nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+.nav a{background:#111827;border:1px solid var(--border);color:#cbd5e1;text-decoration:none;padding:8px 14px;border-radius:9px;font-size:13px;font-weight:600}
+.navbtn{display:inline-block;background:var(--blue);color:#fff;text-decoration:none;padding:9px 15px;border-radius:9px;font-weight:600;font-size:13.5px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px}
 .stat{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 18px}
-.stat .lbl{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.05em}
-.stat .val{font-size:26px;font-weight:700;margin-top:4px}
+.stat .lbl{color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.05em}
+.stat .val{font-size:25px;font-weight:700;margin-top:4px}
+.section{margin-bottom:26px}
+.section h2{font-size:16px;color:#60a5fa;margin:0 0 10px;text-transform:uppercase;letter-spacing:.04em}
 .table-wrap{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow-x:auto}
 table{border-collapse:collapse;width:100%}
-th,td{padding:12px 14px;font-size:13.5px;text-align:left;border-bottom:1px solid var(--border)}
-th{background:#0f172a;color:var(--muted);font-weight:600;text-transform:uppercase;font-size:11.5px;letter-spacing:.05em}
-.badge{display:inline-block;padding:4px 10px;border-radius:999px;font-size:11.5px;font-weight:700}
+th,td{padding:11px 13px;font-size:13px;text-align:left;border-bottom:1px solid var(--border)}
+th{background:#0f172a;color:var(--muted);font-weight:600;text-transform:uppercase;font-size:11px;letter-spacing:.05em}
+.badge{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700}
 .b-on{background:rgba(5,150,105,.2);color:#34d399;border:1px solid #059669}
 .b-off{background:rgba(220,38,38,.2);color:#f87171;border:1px solid #dc2626}
 .b-lock{background:rgba(220,38,38,.25);color:#fca5a5;border:1px solid #ef4444}
 .b-unlock{background:rgba(5,150,105,.2);color:#6ee7b7;border:1px solid #10b981}
 .b-enroll{background:rgba(37,99,235,.2);color:#93c5fd;border:1px solid #3b82f6}
-.btn{border:0;padding:7px 12px;border-radius:8px;font-weight:600;font-size:12.5px;cursor:pointer;color:#fff;margin-right:4px}
-.btn-lock{background:var(--red)}.btn-unlock{background:var(--green)}.btn-sync{background:#334155}.btn-rel{background:#6b7280}
-.footer{color:var(--muted);font-size:12.5px;margin-top:14px}
+.btn{border:0;padding:6px 11px;border-radius:7px;font-weight:600;font-size:12px;cursor:pointer;color:#fff;margin-right:4px}
+.btn-lock{background:var(--red)}.btn-unlock{background:var(--green)}.btn-sync{background:#334155}.btn-rel{background:#6b7280}.btn-blue{background:var(--blue)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;margin-top:12px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px}
+input,select{background:#0f172a;color:#f8fafc;border:1px solid #334155;border-radius:7px;padding:7px 10px;font-size:13px;margin:4px 0;width:100%}
+label{font-size:12px;color:var(--muted);display:inline-block;margin-right:8px}
+code{background:#1e293b;color:#93c5fd;padding:2px 6px;border-radius:5px;font-size:12px}
 </style>
 </head>
 <body>
 <div class="topbar">
   <div class="brand">
     <h1>🛡️ AK DeviceLock Command Center</h1>
-    <p>Authenticated Enterprise DPC • Auto-refreshes every 6s</p>
+    <p>Operator: <b>{{ request.user.username }}</b> • RBAC &amp; Key Management Active</p>
   </div>
   <div>
     <a class="navbtn" href="{% url 'panel_qr' %}">+ Enroll New Device (QR Setup)</a>
   </div>
 </div>
 
+<div class="nav">
+  <a href="#devices">1. Devices</a>
+  <a href="#commands">2. Commands</a>
+  {% if "roles.manage" in perms or "accounts.manage" in perms %}<a href="#roles">3. Role Management</a>{% endif %}
+  {% if "keys.view" in perms %}<a href="#keys">4. Key Management</a>{% endif %}
+  {% if "audit.view" in perms %}<a href="#audit">5. Audit Logs</a>{% endif %}
+</div>
+
+{% if "devices.view" in perms %}
 <div class="stats">
   <div class="stat"><div class="lbl">Total Registered</div><div class="val">{{ total_count }}</div></div>
   <div class="stat"><div class="lbl">Online Now</div><div class="val" style="color:#34d399">{{ online_count }}</div></div>
@@ -50,61 +67,170 @@ th{background:#0f172a;color:var(--muted);font-weight:600;text-transform:uppercas
   <div class="stat"><div class="lbl">Unlocked Devices</div><div class="val" style="color:#60a5fa">{{ unlocked_count }}</div></div>
 </div>
 
-<div class="table-wrap">
-<table>
-<tr>
-  <th>Device ID</th>
-  <th>Device Model</th>
-  <th>Android</th>
-  <th>Connection</th>
-  <th>Enrollment</th>
-  <th>Restriction Status</th>
-  <th>Last Sync</th>
-  <th>Last Command</th>
-  <th>Remote Actions</th>
-</tr>
-{% for r in rows %}
-<tr>
-  <td><code>{{ r.device.device_identifier| slice:":12" }}…</code></td>
-  <td><b>{{ r.device.manufacturer }} {{ r.device.model }}</b></td>
-  <td>Android {{ r.device.android_version }} (SDK {{ r.device.sdk_version }})</td>
-  <td>
-    {% if r.online %}
-      <span class="badge b-on">● ONLINE</span>
-    {% else %}
-      <span class="badge b-off">● OFFLINE</span>
-    {% endif %}
-  </td>
-  <td><span class="badge b-enroll">{{ r.device.enrollment_status }}</span></td>
-  <td>
-    {% if r.device.restriction_status == "LOCKED" %}
-      <span class="badge b-lock">🔒 LOCKED</span>
-    {% else %}
-      <span class="badge b-unlock">🔓 UNLOCKED</span>
-    {% endif %}
-  </td>
-  <td>{{ r.device.last_seen|default:"never" }}</td>
-  <td>
-    {% if r.last %}
-      <b>{{ r.last.command_type }}</b> → <code>{{ r.last.command_status }}</code>
-      {% if r.last.execution_result %}<br><small style="color:var(--muted)">{{ r.last.execution_result }}</small>{% endif %}
-      {% if r.last.command_status == "PENDING" and not r.online %}<br><small style="color:#fbbf24">Queued (waiting for device)</small>{% endif %}
-    {% else %}-{% endif %}
-  </td>
-  <td>
-    {% if r.device.enrollment_status == "ENROLLED" %}
-    <form method="post" action="{% url 'panel_action' r.device.id 'lock' %}" style="display:inline" onsubmit="return confirm('LOCK this device now?')">{% csrf_token %}<button class="btn btn-lock">🔒 LOCK</button></form>
-    <form method="post" action="{% url 'panel_action' r.device.id 'unlock' %}" style="display:inline" onsubmit="return confirm('UNLOCK this device now?')">{% csrf_token %}<button class="btn btn-unlock">🔓 UNLOCK</button></form>
-    <form method="post" action="{% url 'panel_action' r.device.id 'sync' %}" style="display:inline">{% csrf_token %}<button class="btn btn-sync">🔄 SYNC</button></form>
-    <form method="post" action="{% url 'panel_action' r.device.id 'release' %}" style="display:inline" onsubmit="return confirm('PERMANENTLY RELEASE Device Owner and re-enable Factory Reset on this phone?')">{% csrf_token %}<button class="btn btn-rel">RELEASE</button></form>
-    {% endif %}
-  </td>
-</tr>
-{% empty %}
-<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:28px">No devices registered yet. Click <b>+ Enroll New Device (QR Setup)</b> above to enroll a phone.</td></tr>
-{% endfor %}
-</table>
+<div class="section" id="devices">
+  <h2>1. Devices</h2>
+  <div class="table-wrap">
+  <table>
+  <tr><th>Device ID</th><th>Model</th><th>Android</th><th>Connection</th><th>Enrollment</th><th>Restriction</th><th>Last Sync</th><th>Remote Actions</th></tr>
+  {% for r in rows %}
+  <tr>
+    <td><code>{{ r.device.device_identifier|slice:":12" }}…</code></td>
+    <td><b>{{ r.device.manufacturer }} {{ r.device.model }}</b></td>
+    <td>Android {{ r.device.android_version }} (SDK {{ r.device.sdk_version }})</td>
+    <td>{% if r.online %}<span class="badge b-on">● ONLINE</span>{% else %}<span class="badge b-off">● OFFLINE</span>{% endif %}</td>
+    <td><span class="badge b-enroll">{{ r.device.enrollment_status }}</span></td>
+    <td>{% if r.device.restriction_status == "LOCKED" %}<span class="badge b-lock">🔒 LOCKED</span>{% else %}<span class="badge b-unlock">🔓 UNLOCKED</span>{% endif %}</td>
+    <td>{{ r.device.last_seen|default:"never" }}</td>
+    <td>
+      {% if r.device.enrollment_status == "ENROLLED" %}
+        {% if "devices.lock" in perms %}<form method="post" action="{% url 'panel_action' r.device.id 'lock' %}" style="display:inline" onsubmit="return confirm('LOCK this device now?')">{% csrf_token %}<button class="btn btn-lock">🔒 LOCK</button></form>{% endif %}
+        {% if "devices.unlock" in perms %}<form method="post" action="{% url 'panel_action' r.device.id 'unlock' %}" style="display:inline" onsubmit="return confirm('UNLOCK this device now?')">{% csrf_token %}<button class="btn btn-unlock">🔓 UNLOCK</button></form>{% endif %}
+        {% if "devices.sync" in perms %}<form method="post" action="{% url 'panel_action' r.device.id 'sync' %}" style="display:inline">{% csrf_token %}<button class="btn btn-sync">🔄 SYNC</button></form>{% endif %}
+        {% if "devices.release" in perms %}<form method="post" action="{% url 'panel_action' r.device.id 'release' %}" style="display:inline" onsubmit="return confirm('PERMANENTLY RELEASE Device Owner and re-enable Factory Reset?')">{% csrf_token %}<button class="btn btn-rel">RELEASE</button></form>{% endif %}
+      {% endif %}
+    </td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="8" style="text-align:center;color:var(--muted);padding:24px">No devices registered yet.</td></tr>
+  {% endfor %}
+  </table>
+  </div>
 </div>
-<p class="footer">Security guarantee: Lock/Unlock status changes only after the device verifies the ECDSA P-256 signature and reports execution.</p>
+{% endif %}
+
+{% if "commands.view" in perms %}
+<div class="section" id="commands">
+  <h2>2. Commands</h2>
+  <div class="table-wrap">
+  <table>
+  <tr><th>Command ID</th><th>Device</th><th>Type</th><th>Status</th><th>Key ID</th><th>Issued</th><th>Device Reported Result</th></tr>
+  {% for c in recent_commands %}
+  <tr>
+    <td><code>{{ c.id|stringformat:"s"|slice:":8" }}…</code></td>
+    <td>{{ c.device.manufacturer }} {{ c.device.model }}</td>
+    <td><b>{{ c.command_type }}</b></td>
+    <td><code>{{ c.command_status }}</code></td>
+    <td><code>{{ c.key_id|slice:":8"|default:"-" }}</code></td>
+    <td>{{ c.issued_at }}</td>
+    <td>{{ c.execution_result|default:"-" }}</td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="7" style="text-align:center;color:var(--muted)">No commands issued yet.</td></tr>
+  {% endfor %}
+  </table>
+  </div>
+</div>
+{% endif %}
+
+{% if "roles.manage" in perms or "accounts.manage" in perms %}
+<div class="section" id="roles">
+  <h2>3. Role Management</h2>
+  <div class="table-wrap">
+  <table>
+  <tr><th>Role</th><th>System</th><th>Permissions</th></tr>
+  {% for r in roles_list %}
+  <tr><td><b>{{ r.name }}</b></td><td>{{ r.is_system }}</td><td>{% for p in r.permissions.all %}<code>{{ p.code }}</code> {% endfor %}</td></tr>
+  {% endfor %}
+  </table>
+  </div>
+  <div class="grid2">
+    {% if "roles.manage" in perms %}
+    <div class="card">
+      <h3>Create Custom Role</h3>
+      <form method="post" action="{% url 'panel_create_role' %}">{% csrf_token %}
+        <input name="name" placeholder="Role name (e.g. AUDITOR)" required>
+        <input name="description" placeholder="Description">
+        <div style="margin:6px 0">{% for p in all_perms %}<label><input type="checkbox" name="permissions" value="{{ p.code }}" style="width:auto"> {{ p.code }}</label>{% endfor %}</div>
+        <button class="btn btn-blue">Create Role</button>
+      </form>
+    </div>
+    <div class="card">
+      <h3>Assign Role to Account</h3>
+      <form method="post" action="{% url 'panel_assign_role' %}">{% csrf_token %}
+        <select name="account_id">{% for a in accounts %}<option value="{{ a.id }}">{{ a.username }} ({% for ar in a.account_roles.all %}{{ ar.role.name }}{% empty %}none{% endfor %})</option>{% endfor %}</select>
+        <select name="role_id">{% for r in roles_list %}<option value="{{ r.id }}">{{ r.name }}</option>{% endfor %}</select>
+        <button class="btn btn-blue">Assign Role</button>
+      </form>
+    </div>
+    {% endif %}
+    {% if "accounts.manage" in perms %}
+    <div class="card">
+      <h3>Create Operator Account</h3>
+      <form method="post" action="{% url 'panel_create_account' %}">{% csrf_token %}
+        <input name="username" placeholder="Username" required>
+        <input name="password" type="password" placeholder="Password (min 8 chars)" required>
+        <select name="role_id">{% for r in roles_list %}<option value="{{ r.id }}">{{ r.name }}</option>{% endfor %}</select>
+        <button class="btn btn-blue">Create Account</button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% if "keys.view" in perms %}
+<div class="section" id="keys">
+  <h2>4. Key Management (Public Keys &amp; Lifecycle Only)</h2>
+  {% if "keys.manage" in perms %}
+  <div style="margin-bottom:10px">
+    <form method="post" action="{% url 'panel_key_action' 'rotate' %}" style="display:inline" onsubmit="return confirm('Rotate active Command Signing Key?')">{% csrf_token %}<button class="btn btn-blue">🔄 Rotate Command Signing Key</button></form>
+    <form method="post" action="{% url 'panel_key_action' 'generate' %}" style="display:inline">{% csrf_token %}<input type="hidden" name="category" value="ROOT"><button class="btn btn-sync">+ Generate Root Key</button></form>
+  </div>
+  {% endif %}
+  <div class="table-wrap">
+  <table>
+  <tr><th>Key ID</th><th>Category</th><th>Version</th><th>Algorithm</th><th>Status</th><th>Expires</th><th>Action</th></tr>
+  {% for k in signing_keys %}
+  <tr>
+    <td><code>{{ k.id }}</code></td>
+    <td>{{ k.category }}</td>
+    <td>v{{ k.version }}</td>
+    <td>{{ k.algorithm }}</td>
+    <td><code>{{ k.status }}</code></td>
+    <td>{{ k.expires_at|default:"-" }}</td>
+    <td>
+      {% if "keys.manage" in perms and k.status != "REVOKED" %}
+      <form method="post" action="{% url 'panel_key_action' 'revoke' %}" style="display:inline" onsubmit="return confirm('Revoke this key and invalidate its pending commands?')">{% csrf_token %}<input type="hidden" name="key_id" value="{{ k.id }}"><button class="btn btn-lock">Revoke</button></form>
+      {% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+  </table>
+  </div>
+  {% if device_keys %}
+  <div class="table-wrap" style="margin-top:12px">
+  <table>
+  <tr><th>Device</th><th>Device Key ID</th><th>Version</th><th>Algorithm</th><th>Status</th><th>Registered</th></tr>
+  {% for dk in device_keys %}
+  <tr><td>{{ dk.device.model }}</td><td><code>{{ dk.key_id }}</code></td><td>v{{ dk.version }}</td><td>{{ dk.algorithm }}</td><td><code>{{ dk.status }}</code></td><td>{{ dk.registered_at }}</td></tr>
+  {% endfor %}
+  </table>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if "audit.view" in perms %}
+<div class="section" id="audit">
+  <h2>5. Audit Logs</h2>
+  <div class="table-wrap">
+  <table>
+  <tr><th>Timestamp</th><th>Operator</th><th>Action</th><th>Device</th><th>Command ID</th><th>Key ID</th><th>IP</th><th>Result</th></tr>
+  {% for a in audit_logs %}
+  <tr>
+    <td>{{ a.timestamp }}</td>
+    <td>{{ a.actor.username|default:"system/device" }}</td>
+    <td><b>{{ a.event }}</b></td>
+    <td>{% if a.device %}{{ a.device.model }}{% else %}-{% endif %}</td>
+    <td>{% if a.command %}<code>{{ a.command.id|stringformat:"s"|slice:":8" }}</code>{% else %}-{% endif %}</td>
+    <td><code>{{ a.key_id|slice:":8"|default:"-" }}</code></td>
+    <td>{{ a.source_ip|default:"-" }}</td>
+    <td>{{ a.result }}</td>
+  </tr>
+  {% endfor %}
+  </table>
+  </div>
+</div>
+{% endif %}
 </body>
 </html>

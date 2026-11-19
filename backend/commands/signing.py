@@ -1,10 +1,10 @@
-"""Command signing. ECDSA P-256 / SHA-256; Android verifies with java.security (SHA256withECDSA)."""
-import base64
+"""Command signing. ECDSA P-256 / SHA-256; delegates key lifecycle to keymanagement."""
 from pathlib import Path
 
-from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
-from django.conf import settings
+
+from keymanagement.services import ensure_active_command_key, sign_payload
 
 
 def canonical_payload(command) -> bytes:
@@ -14,29 +14,31 @@ def canonical_payload(command) -> bytes:
         str(int(command.issued_at.timestamp())), str(int(command.expires_at.timestamp())),
         command.nonce, command.reason,
     ]
+    if getattr(command, "key_id", ""):
+        fields.append(str(command.key_id))
     return "|".join(fields).encode("utf-8")
 
 
-def _private_key():
-    return serialization.load_pem_private_key(Path(settings.SIGNING_KEY_PATH).read_bytes(), password=None)
+def sign_command(command) -> str:
+    sk = ensure_active_command_key()
+    command.key_id = str(sk.id)
+    return sign_payload(sk, canonical_payload(command))
 
 
 def sign(command) -> str:
-    sig = _private_key().sign(canonical_payload(command), ec.ECDSA(hashes.SHA256()))
-    return base64.b64encode(sig).decode()
+    return sign_command(command)
 
 
 def public_key_b64() -> str:
-    """X.509 SubjectPublicKeyInfo DER, base64: embed this in the Android app (public data)."""
-    pub = _private_key().public_key().public_bytes(
-        serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo)
-    return base64.b64encode(pub).decode()
+    return ensure_active_command_key().public_key_b64
 
 
 def generate_key(path: str):
     key = ec.generate_private_key(ec.SECP256R1())
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_bytes(key.private_bytes(
-        serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()))
-
+    p.write_bytes(
+        key.private_bytes(
+            serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()
+        )
+    )

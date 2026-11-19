@@ -18,6 +18,7 @@ import com.akdevicelock.dpc.enrollment.Enrollment
 import com.akdevicelock.dpc.lock.EnrollmentProtection
 import com.akdevicelock.dpc.lock.KioskRestrictionManager
 import com.akdevicelock.dpc.networking.ApiClient
+import com.akdevicelock.dpc.security.DeviceKeyManager
 import com.akdevicelock.dpc.security.SecureStore
 
 /**
@@ -123,6 +124,13 @@ class CommandPollService : Service() {
         val store = SecureStore(this)
         val token = store.getToken() ?: run { state.connection = "no credential"; return }
         var api = ApiClient(state.serverUrl, token)
+        syncKeyBundle(state, api)
+        if (!state.deviceKeyRegistered && state.deviceId.isNotEmpty()) {
+            DeviceKeyManager.getOrCreatePublicKeyB64()?.let { pub ->
+                val kr = api.registerDevicePublicKey(state.deviceId, pub)
+                if (kr.code in 200..299) state.deviceKeyRegistered = true
+            }
+        }
         val pending = api.pending()
         if (pending.code == 401) { state.connection = "credential rejected"; return }
         val body = pending.body ?: throw IllegalStateException("bad response")
@@ -151,6 +159,28 @@ class CommandPollService : Service() {
         api.sync(sync)
         state.lastSync = now
         state.connection = "online"
+    }
+
+    private fun syncKeyBundle(state: AppState, api: ApiClient) {
+        try {
+            val kr = api.fetchPublicKeys()
+            val body = kr.body ?: return
+            if (kr.code !in 200..299) return
+            val valid = mutableMapOf<String, String>()
+            val arr = body.optJSONArray("valid_keys")
+            if (arr != null) {
+                for (i in 0 until arr.length()) {
+                    val o = arr.getJSONObject(i)
+                    valid[o.getString("key_id")] = o.getString("public_key_b64")
+                }
+            }
+            val revoked = mutableSetOf<String>()
+            val rarr = body.optJSONArray("revoked_key_ids")
+            if (rarr != null) {
+                for (i in 0 until rarr.length()) revoked.add(rarr.getString(i))
+            }
+            state.updateKeyBundle(valid, revoked)
+        } catch (_: Exception) {}
     }
 
     companion object {

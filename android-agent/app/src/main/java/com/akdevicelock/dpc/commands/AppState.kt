@@ -49,6 +49,33 @@ class AppState(context: Context) {
         get() = prefs.getLong("last_token_renewal", 0)
         set(v) = prefs.edit().putLong("last_token_renewal", v).apply()
 
+    var deviceKeyRegistered: Boolean
+        get() = prefs.getBoolean("device_key_registered", false)
+        set(v) = prefs.edit().putBoolean("device_key_registered", v).apply()
+
+    fun updateKeyBundle(validKeys: Map<String, String>, revokedIds: Set<String>) {
+        val m = JSONObject()
+        validKeys.forEach { (k, v) -> m.put(k, v) }
+        val r = org.json.JSONArray()
+        revokedIds.forEach { r.put(it) }
+        prefs.edit().putString("valid_keys", m.toString()).putString("revoked_keys", r.toString()).apply()
+    }
+
+    fun getPublicKeyForId(keyId: String): String? {
+        val m = JSONObject(prefs.getString("valid_keys", "{}")!!)
+        return m.optString(keyId, "").ifEmpty { null }
+    }
+
+    fun hasKeyBundle(): Boolean = JSONObject(prefs.getString("valid_keys", "{}")!!).length() > 0
+
+    fun isKeyRevoked(keyId: String): Boolean {
+        val arr = org.json.JSONArray(prefs.getString("revoked_keys", "[]")!!)
+        for (i in 0 until arr.length()) {
+            if (arr.optString(i) == keyId) return true
+        }
+        return false
+    }
+
     fun nowServerSeconds() = System.currentTimeMillis() / 1000 + serverOffset
 
     // ---- replay protection: processed command ids -> result, and seen nonces ----

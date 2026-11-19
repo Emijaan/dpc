@@ -32,6 +32,7 @@ class CommandVerifierTest {
         issuedAt = now - 10,
         expiresAt = now + 3600,
         nonce = "0123456789abcdef",
+        keyId = UUID.randomUUID().toString(),
         signature = "",
         reason = "test",
     )
