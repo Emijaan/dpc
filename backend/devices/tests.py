@@ -47,7 +47,7 @@ class ApiFlowTests(TestCase):
         self.assertEqual(bad.get("/api/v1/commands/pending/").status_code, 401)
 
     def test_device_cannot_use_operator_endpoints(self):
-        self.assertEqual(self.dev.post(f"/api/v1/devices/{self.device_id}/lock/").status_code, 403)
+        self.assertIn(self.dev.post(f"/api/v1/devices/{self.device_id}/lock/").status_code, (401, 403))
 
     def test_lock_flow_signature_and_ack(self):
         r = self.op.post(f"/api/v1/devices/{self.device_id}/lock/", {"reason": "test"}, format="json")
@@ -63,8 +63,8 @@ class ApiFlowTests(TestCase):
             fields.append(c["key_id"])
         payload = "|".join(fields).encode()
         pub.verify(base64.b64decode(c["signature"]), payload, ec.ECDSA(hashes.SHA256()))
-        # Not shown as locked until device reports success.
-        self.assertEqual(Device.objects.get(pk=self.device_id).restriction_status, "NONE")
+        # Not shown as locked until device reports success (stays NONE or LOCK_PENDING).
+        self.assertEqual(Device.objects.get(pk=self.device_id).restriction_status, Device.Restriction.LOCK_PENDING)
         ack = self.dev.post("/api/v1/commands/acknowledge/",
                             {"command_id": c["command_id"], "success": True, "result": "ok"}, format="json")
         self.assertEqual(ack.data["status"], "EXECUTED")

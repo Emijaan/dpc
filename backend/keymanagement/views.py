@@ -9,6 +9,7 @@ from rest_framework.views import APIView
 
 from devices.auth import DeviceTokenAuthentication, DeviceUser, IsDevice
 from devices.models import Device
+from devices.ownership import can_access_device, scope_devices_queryset
 from keymanagement.models import DevicePublicKey, SigningKey
 from keymanagement.services import (
     ensure_active_command_key,
@@ -54,7 +55,9 @@ class KeyListView(APIView):
                 "public_key_b64": dk.public_key_b64,
                 "registered_at": dk.registered_at.isoformat(),
             }
-            for dk in DevicePublicKey.objects.select_related("device").all()[:100]
+            for dk in DevicePublicKey.objects.select_related("device").filter(
+                device__in=scope_devices_queryset(request.user)
+            )[:100]
         ]
         return Response({"signing_keys": keys, "device_public_keys": dev_keys})
 
@@ -153,6 +156,8 @@ class DeviceKeyRegisterView(APIView):
 
     def post(self, request, device_id):
         device = get_object_or_404(Device, pk=device_id)
+        if not isinstance(request.user, DeviceUser) and not can_access_device(request.user, device):
+            return Response({"error": "forbidden"}, status=status.HTTP_403_FORBIDDEN)
         s = DeviceKeySerializer(data=request.data)
         s.is_valid(raise_exception=True)
         d = s.validated_data

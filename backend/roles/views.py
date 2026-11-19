@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from audit.models import log_event
+from devices.ownership import can_manage_account
 from roles.models import AccountRole, Permission, Role
 from roles.permissions import HasPermissionCode, ensure_default_rbac
 
@@ -119,6 +120,8 @@ class AccountRolesView(APIView):
     def post(self, request, account_id):
         ensure_default_rbac()
         target = get_object_or_404(get_user_model(), pk=account_id)
+        if not can_manage_account(request.user, target):
+            return Response({"error": "forbidden"}, status=status.HTTP_403_FORBIDDEN)
         s = AccountRoleAssignSerializer(data=request.data)
         s.is_valid(raise_exception=True)
         roles = list(Role.objects.filter(id__in=s.validated_data["role_ids"]))

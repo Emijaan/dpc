@@ -1,0 +1,257 @@
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { api, downloadAuthorizedFile } from "../api/client";
+import { useAuth } from "../auth/AuthContext";
+import { ConfirmModal, StatusBadge } from "../components/UI";
+import type { DeviceItem } from "../types";
+
+export function DevicesPage() {
+  const { user } = useAuth();
+  const [devices, setDevices] = useState<DeviceItem[]>([]);
+  const [count, setCount] = useState(0);
+  const [page, setPage] = useState(1);
+  const [q, setQ] = useState("");
+  const [enrollmentStatus, setEnrollmentStatus] = useState("");
+  const [restrictionStatus, setRestrictionStatus] = useState("");
+  const [androidVersion, setAndroidVersion] = useState("");
+  const [selected, setSelected] = useState<DeviceItem | null>(null);
+  const [revealedImei, setRevealedImei] = useState("");
+  const [confirmAction, setConfirmAction] = useState<"lock" | "unlock" | "release" | null>(null);
+  const [msg, setMsg] = useState("");
+  const [err, setErr] = useState("");
+
+  async function load(targetPage = page) {
+    setErr("");
+    const params = new URLSearchParams({ page: String(targetPage), page_size: "25" });
+    if (q.trim()) params.set("q", q.trim());
+    if (enrollmentStatus) params.set("enrollment_status", enrollmentStatus);
+    if (restrictionStatus) params.set("restriction_status", restrictionStatus);
+    if (androidVersion.trim()) params.set("android_version", androidVersion.trim());
+    try {
+      const r = await api<{ count: number; page: number; devices: DeviceItem[] }>(`/api/v1/devices/?${params}`);
+      setDevices(r.devices);
+      setCount(r.count);
+      setPage(r.page);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Failed to load devices");
+    }
+  }
+
+  useEffect(() => {
+    load(1);
+  }, [enrollmentStatus, restrictionStatus]);
+
+  async function runCommand(dev: DeviceItem, action: "lock" | "unlock" | "sync-command" | "release") {
+    setErr("");
+    setMsg("");
+    try {
+      const r = await api<{ status: string; device_online: boolean }>(`/api/v1/devices/${dev.id}/${action}/`, {
+        method: "POST",
+        body: JSON.stringify({ reason: "operator_console" }),
+      });
+      setMsg(
+        r.device_online
+          ? `Command ${action.toUpperCase()} issued (${r.status}).`
+          : `Device is offline. Command queued (${r.status}) — waiting for device acknowledgment.`
+      );
+      setConfirmAction(null);
+      setSelected(null);
+      await load(page);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Command failed");
+    }
+  }
+
+  async function revealImei(dev: DeviceItem) {
+    try {
+      const r = await api<{ imei: string }>(`/api/v1/devices/${dev.id}/reveal-imei/`);
+      setRevealedImei(r.imei || "(not recorded)");
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Reveal failed");
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">Devices ({count})</h1>
+          <p className="text-xs text-slate-500">Scoped to {user?.account_type} ownership boundaries</p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => downloadAuthorizedFile("/api/v1/devices/export/", "devices_export.csv")}
+            className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-sm font-medium hover:bg-slate-50"
+          >
+            Export CSV
+          </button>
+          <Link to="/add-device" className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium">
+            + Add Device
+          </Link>
+        </div>
+      </div>
+
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          load(1);
+        }}
+        className="flex flex-wrap gap-2 bg-white border border-slate-200 rounded-lg p-3"
+      >
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search ref, model, customer, exact IMEI..."
+          className="flex-1 min-w-[200px] rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
+        />
+        <select value={enrollmentStatus} onChange={(e) => setEnrollmentStatus(e.target.value)} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm">
+          <option value="">All Enrollment</option>
+          <option value="PENDING">PENDING</option>
+          <option value="ENROLLED">ENROLLED</option>
+          <option value="FAILED">FAILED</option>
+          <option value="RELEASED">RELEASED</option>
+        </select>
+        <select value={restrictionStatus} onChange={(e) => setRestrictionStatus(e.target.value)} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm">
+          <option value="">All Restrictions</option>
+          <option value="NONE">NONE</option>
+          <option value="LOCK_PENDING">LOCK_PENDING</option>
+          <option value="LOCKED">LOCKED</option>
+          <option value="UNLOCK_PENDING">UNLOCK_PENDING</option>
+        </select>
+        <input
+          value={androidVersion}
+          onChange={(e) => setAndroidVersion(e.target.value)}
+          placeholder="Android ver"
+          className="w-28 rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
+        />
+        <button className="px-4 py-1.5 rounded-lg bg-slate-900 text-white text-sm font-medium">Filter</button>
+      </form>
+
+      {err && <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-xs">{err}</div>}
+      {msg && <div className="bg-green-50 border border-green-200 text-green-700 p-3 rounded-lg text-xs">{msg}</div>}
+
+      <div className="bg-white border border-slate-200 rounded-lg overflow-x-auto">
+        <table className="w-full text-left text-xs">
+          <thead>
+            <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
+              <th className="p-3">Ref / Device</th>
+              <th className="p-3">Customer</th>
+              <th className="p-3">IMEI</th>
+              <th className="p-3">Owner</th>
+              <th className="p-3">Connection</th>
+              <th className="p-3">Enrollment</th>
+              <th className="p-3">Restriction</th>
+              <th className="p-3">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {devices.length === 0 ? (
+              <tr><td colSpan={8} className="p-6 text-center text-slate-500">No devices match your filters.</td></tr>
+            ) : (
+              devices.map((d) => (
+                <tr key={d.id}>
+                  <td className="p-3">
+                    <div className="font-medium text-slate-900">{d.manufacturer} {d.model}</div>
+                    <div className="text-slate-500">{d.registration_reference || d.device_identifier.slice(0, 14)} · Android {d.android_version || "?"}</div>
+                  </td>
+                  <td className="p-3">{d.customer_name ?? "-"}</td>
+                  <td className="p-3"><code>{d.imei_masked || "-"}</code></td>
+                  <td className="p-3">{d.vendor_username ?? d.retailer_username ?? "Platform"}</td>
+                  <td className="p-3"><StatusBadge label={d.connection_status} /></td>
+                  <td className="p-3"><StatusBadge label={d.enrollment_status} /></td>
+                  <td className="p-3"><StatusBadge label={d.restriction_status} /></td>
+                  <td className="p-3 flex flex-wrap gap-1.5">
+                    <button
+                      onClick={() => {
+                        setSelected(d);
+                        setRevealedImei("");
+                      }}
+                      className="px-2.5 py-1 rounded border border-slate-300 hover:bg-slate-50 font-medium"
+                    >
+                      Manage
+                    </button>
+                    {d.enrollment_status === "ENROLLED" && user?.permissions.includes("devices.release") && (
+                      <button
+                        onClick={() => {
+                          setSelected(d);
+                          setConfirmAction("release");
+                        }}
+                        className="px-2.5 py-1 rounded border border-red-300 text-red-700 hover:bg-red-50 font-medium"
+                      >
+                        Release
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {count > 25 && (
+        <div className="flex justify-between items-center text-xs text-slate-600">
+          <span>Page {page} · {count} total</span>
+          <div className="flex gap-2">
+            <button disabled={page <= 1} onClick={() => load(page - 1)} className="px-3 py-1 rounded border border-slate-300 bg-white disabled:opacity-40">Prev</button>
+            <button disabled={page * 25 >= count} onClick={() => load(page + 1)} className="px-3 py-1 rounded border border-slate-300 bg-white disabled:opacity-40">Next</button>
+          </div>
+        </div>
+      )}
+
+      {selected && !confirmAction && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40 p-4">
+          <div className="bg-white rounded-lg border border-slate-200 shadow-xl w-full max-w-lg p-5 space-y-4">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="text-base font-semibold text-slate-900">{selected.manufacturer} {selected.model}</h3>
+                <p className="text-xs text-slate-500">{selected.registration_reference} · {selected.device_identifier}</p>
+              </div>
+              <button onClick={() => setSelected(null)} className="text-slate-400 hover:text-slate-700 text-sm">Close</button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <StatusBadge label={selected.connection_status} />
+              <StatusBadge label={selected.enrollment_status} />
+              <StatusBadge label={selected.restriction_status} />
+            </div>
+            <div className="text-xs space-y-1 bg-slate-50 p-3 rounded-lg border border-slate-200">
+              <div><b>Customer:</b> {selected.customer_name ?? "-"} ({selected.customer_mobile_masked || "-"})</div>
+              <div><b>Owner:</b> Retailer={selected.retailer_username ?? "Platform"} · Vendor={selected.vendor_username ?? "-"}</div>
+              <div className="flex items-center gap-2">
+                <b>IMEI:</b> <code>{revealedImei || selected.imei_masked || "-"}</code>
+                {!revealedImei && selected.imei_masked && (
+                  <button onClick={() => revealImei(selected)} className="text-indigo-600 font-medium hover:underline">Reveal (audited)</button>
+                )}
+              </div>
+            </div>
+            {selected.enrollment_status === "ENROLLED" && (
+              <div className="flex flex-wrap gap-2 pt-2">
+                <button onClick={() => setConfirmAction("lock")} className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-medium">Lock Device</button>
+                <button onClick={() => setConfirmAction("unlock")} className="px-3 py-1.5 rounded-lg bg-green-600 text-white text-xs font-medium">Unlock Device</button>
+                <button onClick={() => runCommand(selected, "sync-command")} className="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-medium">Sync</button>
+                {user?.permissions.includes("devices.release") && (
+                  <button onClick={() => setConfirmAction("release")} className="px-3 py-1.5 rounded-lg border border-red-300 text-red-700 text-xs font-medium">Release...</button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      <ConfirmModal
+        open={Boolean(selected && confirmAction)}
+        title={confirmAction === "release" ? "Release Device Permanently?" : `${confirmAction?.toUpperCase()} Device?`}
+        message={
+          confirmAction === "release"
+            ? "Releasing removes Device Owner control. Historical ownership and the consumed entitlement are permanently preserved."
+            : "This sends a cryptographically signed command. Offline devices remain pending until acknowledged."
+        }
+        confirmLabel={confirmAction?.toUpperCase()}
+        danger={confirmAction === "lock" || confirmAction === "release"}
+        requireText={confirmAction === "release" ? (selected?.registration_reference || selected?.device_identifier) : undefined}
+        onCancel={() => setConfirmAction(null)}
+        onConfirm={() => (selected && confirmAction ? runCommand(selected, confirmAction) : Promise.resolve())}
+      />
+    </div>
+  );
+}

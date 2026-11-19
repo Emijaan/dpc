@@ -1,0 +1,1395 @@
+# MASTER PROJECT PROMPT — AK DEVICELOCK
+## Complete Android Device Management, Enrollment & Remote Locking Platform
+
+Act as a Senior Software Architect, Android Enterprise/DPC Specialist, Django Backend Engineer, PostgreSQL Database Architect, UI/UX Designer, and Cybersecurity Engineer.
+
+I want you to design and develop a complete production-ready Android Device Management and Remote Locking Platform named **AK DeviceLock**.
+
+This project must be designed from scratch, including:
+
+- Complete UI/UX design
+- Backend architecture
+- Database design
+- Three-level user management
+- Device entitlement/key allocation system
+- Customer and device registration
+- Android device enrollment
+- QR-based provisioning
+- Android 16 USB/ADB BAT provisioning
+- Device authentication
+- Remote lock/unlock
+- Device management
+- Audit logs
+- Superuser, Retailer and Vendor dashboards
+- Security, tenant isolation and deployment
+
+Do not create a basic demo. Build a structured, secure, scalable production application.
+
+---
+
+# 1. IMPORTANT DEVELOPMENT RULES
+
+Before writing code:
+
+1. Inspect the existing project files and development environment.
+2. Identify the existing Android Locking Mechanism and its implementation.
+3. Take a complete backup of the existing working Android project.
+4. Document the current Android 8–16 locking functionality.
+5. Establish a regression test baseline.
+6. Design the new architecture before implementation.
+7. Build the project module by module.
+8. Test every module before moving to the next milestone.
+
+**Critical:** The existing Android locking mechanism is already working in our testing across Android 8–16. Do not unnecessarily replace or rewrite it. Integrate it into the new backend and device-management architecture.
+
+If the existing implementation has limitations on a particular Android version or manufacturer, identify them and document them instead of claiming universal compatibility.
+
+Do not generate the entire project in one unverified code dump. Build, test, and explain each milestone.
+
+---
+
+# 2. PROJECT TECHNOLOGY STACK
+
+## Android Application
+
+- Native Android development
+- Kotlin
+- Android Studio
+- Android SDK
+- Android Device Policy Controller (DPC) architecture
+- Android Enterprise APIs where supported
+- Android Keystore
+- Firebase Cloud Messaging
+- Retrofit/OkHttp for authenticated API communication
+- Room database for local device state where required
+
+Package name:
+
+`com.akdevicelock.dpc`
+
+Application name:
+
+`AK DeviceLock`
+
+## Backend
+
+- Python
+- Django
+- Django REST Framework
+- PostgreSQL
+- Redis where required
+- Celery for background processing
+- Firebase Cloud Messaging
+- Secure REST APIs
+- JWT-based authentication with refresh-token rotation
+
+## Frontend
+
+Build a modern, professional, responsive web application.
+
+Preferred stack:
+
+- React
+- TypeScript
+- Tailwind CSS
+- Reusable component architecture
+- Responsive desktop, tablet and mobile layouts
+- Professional charts, tables, filters and dashboard cards
+
+Do not use a generic admin template without customization.
+
+## Deployment
+
+- Ubuntu VPS
+- Nginx
+- Gunicorn
+- PostgreSQL
+- HTTPS/SSL
+- Environment-based configuration
+- Automated backups
+- Production logging and monitoring
+
+Keep development, staging and production environments separate.
+
+---
+
+# 3. USER HIERARCHY — EXACTLY THREE USER TYPES
+
+The entire platform will have only three primary user types.
+
+Do not introduce unnecessary fourth-level account roles.
+
+## LEVEL 1 — SUPERUSER / SUPERADMIN
+
+This is the platform owner. I will be the Superuser.
+
+The Superuser has complete control over the entire platform.
+
+### Superuser permissions
+
+1. Create Retailer accounts.
+2. Create Vendor accounts directly when required.
+3. While creating an account, select its account type:
+   - Retailer
+   - Vendor
+4. Assign device entitlements/keys during account creation.
+5. Edit account information.
+6. Activate or deactivate Retailer accounts.
+7. Activate or deactivate Vendor accounts.
+8. Enable or disable device groups or account groups.
+9. View all Retailers.
+10. View all Vendors.
+11. View all registered customers.
+12. View all registered devices.
+13. View active devices.
+14. View inactive devices.
+15. View released devices.
+16. View pending enrollment devices.
+17. View expired allocations.
+18. View all key allocation and transfer histories.
+19. Lock any authorized registered device.
+20. Unlock any authorized registered device.
+21. Release any registered device through an authorized release workflow.
+22. Disable or reactivate an account or vendor.
+23. Disable or revoke device access where appropriate.
+24. View all commands and device acknowledgments.
+25. View complete audit logs.
+26. Manage cryptographic keys and security settings.
+27. View all system statistics.
+28. Control every feature available in the platform.
+
+The Superuser dashboard must provide complete platform-wide visibility.
+
+### Superuser dashboard filters
+
+Provide filters for:
+
+- Retailer
+- Vendor
+- Account type
+- Device status
+- Enrollment status
+- Android version
+- Mobile brand
+- Mobile model
+- Registration date
+- Last online date
+- Entitlement status
+- Active/inactive/released
+- Customer name
+- Customer mobile number
+- IMEI
+
+The Superuser should be able to identify and manage any device without manually navigating through multiple account pages.
+
+---
+
+## LEVEL 2 — RETAILER
+
+A Retailer is created by the Superuser.
+
+Examples:
+
+- Finance companies
+- Distributors
+- Device financing businesses
+- Large mobile retailers
+
+### Retailer creation fields
+
+When creating a Retailer, the Superuser must enter:
+
+- Full name
+- Business/company name
+- Address
+- Contact person
+- Mobile number
+- Email address
+- Username
+- Password or secure account invitation
+- Allocated device entitlement quantity
+- Allocation issue date
+- Allocation expiry date
+- Account status
+
+The Superuser must be able to edit these details later.
+
+### Retailer permissions
+
+A Retailer can:
+
+1. View its own dashboard.
+2. View its allocated device entitlements.
+3. View its consumed entitlements.
+4. View its remaining entitlements.
+5. View its distributed entitlements.
+6. Create Vendor accounts under itself.
+7. Allocate available entitlements to its Vendors.
+8. Reallocate eligible unused entitlements between its Vendors.
+9. View devices registered directly by itself.
+10. View devices registered by its own Vendors.
+11. View customers registered by itself and its own Vendors.
+12. Lock and unlock devices within its authorized ownership scope.
+13. View enrollment sessions within its scope.
+14. View its own commands and command history.
+15. View allocation and transfer history.
+16. View audit activities within its scope.
+17. View its own account details.
+
+A Retailer must never access another Retailer's data.
+
+### Retailer dashboard
+
+Keep the dashboard clean and professional.
+
+Display:
+
+- Total allocated entitlements
+- Distributed entitlements
+- Consumed entitlements
+- Available entitlements
+- Active devices
+- Inactive devices
+- Released devices
+- Total Vendors
+- Recent registrations
+- Recent commands
+- Recent activities
+- Allocation expiry information
+
+Provide a Vendor management page with the ability to create and manage Vendors.
+
+---
+
+## LEVEL 3 — VENDOR / USER 2
+
+This is the normal operational account under a Retailer.
+
+Examples:
+
+- Shop owners
+- Financers
+- Local mobile vendors
+- Authorized device registration partners
+
+A Vendor is created by the Superuser or by a Retailer under its own account.
+
+### Vendor creation fields
+
+- Full name
+- Business/shop name
+- Address
+- Contact person
+- Mobile number
+- Email address
+- Username
+- Password or secure account invitation
+- Parent Retailer
+- Allocated device entitlement quantity
+- Allocation issue date
+- Allocation expiry date
+- Account status
+
+### Vendor permissions
+
+A Vendor can:
+
+1. View its own dashboard.
+2. View its allocated entitlements.
+3. View consumed entitlements.
+4. View remaining entitlements.
+5. Register new customers.
+6. Register new devices.
+7. Generate authorized enrollment QR codes.
+8. Download its authorized Android 16 BAT provisioning file.
+9. View only its own registered devices.
+10. Lock and unlock its own devices, subject to account and device permissions.
+11. View its own customer records.
+12. View its own registration history.
+13. View its own command history.
+14. View its own enrollment sessions.
+15. View its own allocation and transfer history.
+16. Transfer eligible unused entitlements to another authorized Vendor under the same Retailer, subject to the allocation rules below.
+
+A Vendor must not create additional account levels. The platform has exactly three primary user types.
+
+---
+
+# 4. STRICT DEVICE OWNERSHIP AND DATA ISOLATION
+
+This is one of the most important requirements.
+
+Every device must belong to the account that registered it, with its parent Retailer recorded.
+
+### Ownership rules
+
+**Superuser:**
+- Can access every registered device across the platform.
+
+**Retailer:**
+- Can access devices registered directly by that Retailer.
+- Can access devices registered by its own Vendors.
+- Cannot access devices belonging to another Retailer.
+
+**Vendor:**
+- Can access only devices registered under its own Vendor account.
+- Cannot access another Vendor's devices, customers, enrollment sessions or commands.
+
+### Example
+
+Retailer A receives 10 entitlements.
+
+Retailer B receives 15 entitlements.
+
+Vendor A belongs to Retailer A.
+
+Vendor B belongs to Retailer B.
+
+If Vendor A registers a device:
+
+- Vendor A can view and manage that device within its permissions.
+- Retailer A can view and manage that device within its permissions.
+- Superuser can view and manage that device.
+- Vendor B cannot access it.
+- Retailer B cannot access it.
+
+Apply the same rule to every customer, device, command, enrollment session, file, export and audit record.
+
+### Backend enforcement
+
+Never depend only on frontend visibility.
+
+Implement strict authorization in:
+
+- Django REST Framework permissions
+- Queryset filtering
+- Service-layer authorization
+- Device command creation
+- Customer APIs
+- Enrollment APIs
+- File download APIs
+- Search APIs
+- Export APIs
+- Background tasks
+- Audit log APIs
+
+Changing a device ID, UUID, URL or API parameter must never allow one account to access another account's resources.
+
+Use deny-by-default authorization.
+
+Return appropriate authorization errors without leaking another tenant's private data.
+
+### Ownership fields
+
+Every device should maintain fields such as:
+
+- `retailer_id`
+- `vendor_id`
+- `registered_by_account_id`
+- `customer_id`
+- `registration_date`
+- `ownership_status`
+
+Keep the original registration ownership and audit history permanently.
+
+Default policy: no ownership transfer of registered devices.
+
+If a device transfer feature is introduced later, it must require Superuser authorization, explicit confirmation, a reason and an immutable audit record. It must never restore or duplicate a consumed entitlement.
+
+---
+
+# 5. DEVICE ENTITLEMENT / KEY ALLOCATION SYSTEM
+
+In this platform, the term "Key" means a commercial device-registration entitlement.
+
+It is NOT the cryptographic signing key used to secure commands.
+
+Keep these two systems completely separate.
+
+One entitlement allows one successfully registered device.
+
+## Superuser allocation
+
+Example:
+
+- Retailer A receives 10 entitlements.
+- Retailer B receives 15 entitlements.
+
+Retailer A can distribute its available entitlements to its Vendors.
+
+Example:
+
+Retailer A has 10 entitlements.
+
+- Vendor A receives 5.
+- Vendor B receives 3.
+- Retailer A retains 2 for direct registration or future allocation.
+
+The total distributed and retained amounts must never exceed the Retailer's available entitlement balance.
+
+## Entitlement transfer
+
+Retailers can allocate entitlements to their Vendors.
+
+Vendors can transfer eligible unused entitlements to another Vendor under the same Retailer, if enabled by the platform's authorization policy.
+
+Rules:
+
+1. Only unused entitlements can be transferred.
+2. Consumed entitlements cannot be transferred.
+3. Cross-Retailer transfers are prohibited.
+4. The recipient must be an active authorized account.
+5. Every transfer must be recorded.
+6. Transfers must be atomic database transactions.
+7. Prevent duplicate transfers and concurrent over-allocation.
+8. A transfer must immediately update the sender and receiver balances.
+9. The Superuser must be able to view every allocation and transfer.
+10. The Retailer must be able to view allocation and transfer history within its hierarchy.
+
+### Example
+
+Retailer A receives 10 entitlements.
+
+It allocates 5 to Vendor A.
+
+Vendor A has 5 available entitlements.
+
+Vendor A transfers 2 unused entitlements to Vendor B under the same Retailer.
+
+Now:
+
+- Vendor A has 3 available.
+- Vendor B receives 2 additional entitlements.
+- Retailer A's total entitlement liability remains unchanged.
+
+Implement a complete allocation ledger.
+
+## Entitlement consumption
+
+An entitlement must be consumed only when:
+
+1. Customer details have been validated.
+2. Device details have been validated.
+3. The enrollment session is valid.
+4. The actual device has completed supported enrollment.
+5. The backend has verified device identity and registration.
+6. The registration transaction successfully commits.
+
+Generating a QR code, generating an APK, downloading a BAT file or creating an enrollment session must NOT consume an entitlement.
+
+Once a device is successfully registered, its entitlement is permanently consumed.
+
+Releasing, uninstalling, deleting or resetting a device must never restore the consumed entitlement.
+
+Maintain an append-only consumption ledger.
+
+Use atomic database transactions, row locking and appropriate constraints to prevent double consumption.
+
+## Allocation validity
+
+Every allocation has a validity of one year / 365 days.
+
+Store:
+
+- Allocation issue date
+- Expiry date
+- Allocated quantity
+- Consumed quantity
+- Available quantity
+- Allocation status
+
+Expired allocations cannot be used for new device registrations.
+
+Expiry must not automatically lock an already registered device or prevent authorized unlock, recovery or release.
+
+Do not silently renew expired allocations.
+
+---
+
+# 6. CLEAN AND PROFESSIONAL DASHBOARD DESIGN
+
+Design three separate dashboards:
+
+1. Superuser Dashboard
+2. Retailer Dashboard
+3. Vendor Dashboard
+
+All dashboards must share a consistent visual design system.
+
+### UI requirements
+
+- Modern professional interface
+- Clean navigation
+- Responsive layout
+- Clear typography
+- Consistent spacing
+- Professional data tables
+- Search and filters
+- Pagination
+- Confirmation dialogs for sensitive operations
+- Useful empty states
+- Loading states
+- Error states
+- Success notifications
+- Mobile-friendly layout
+
+Avoid unnecessary cards, clutter and excessive colors.
+
+The Superuser dashboard should have the complete feature set.
+
+The Retailer dashboard should show only Retailer-level functionality.
+
+The Vendor dashboard should show only Vendor-level functionality.
+
+Hide irrelevant controls in the UI, but always enforce the same restrictions in the backend.
+
+---
+
+# 7. CUSTOMER AND DEVICE REGISTRATION WORKFLOW
+
+Whenever a Superuser, Retailer or Vendor wants to register a new device, the user must first complete a customer registration form.
+
+Do not allow enrollment file generation before the required information has been submitted and validated.
+
+### Customer information
+
+Required fields:
+
+- Customer full name
+- Customer mobile number
+- Customer email address
+
+### Device information
+
+Required fields:
+
+- Mobile brand
+- Mobile model
+- IMEI number
+- Android version
+- Device enrollment method
+
+Additional system-generated information:
+
+- Registration reference
+- Registered by account
+- Parent Retailer
+- Vendor
+- Registration date
+- Enrollment session ID
+- Device identifier
+- Android SDK version
+- AK DeviceLock app version
+- Enrollment status
+- Device status
+
+Use the correct term **IMEI**, not EMI number.
+
+Handle IMEI and customer information in accordance with applicable privacy and data-protection requirements. Encrypt sensitive information at rest, mask IMEI in ordinary dashboard views and restrict access to authorized users.
+
+Do not assume Android applications can universally retrieve IMEI on every Android version. Use supported provisioning and authorized identity-verification methods.
+
+### Registration workflow
+
+1. User logs in.
+2. User opens Add New Device.
+3. User enters customer details.
+4. User enters device details.
+5. Backend validates account ownership and remaining entitlements.
+6. Backend creates a pending registration.
+7. Backend creates a short-lived enrollment session.
+8. The user is shown the supported enrollment method for the selected Android version.
+9. User performs enrollment.
+10. Device authenticates with the backend.
+11. Backend verifies the device and registration session.
+12. Backend completes registration.
+13. Exactly one entitlement is consumed.
+14. Device appears in the correct account's dashboard.
+15. Superuser can view the device in the platform-wide dashboard.
+
+Do not consume an entitlement at the beginning of this workflow.
+
+---
+
+# 8. ANDROID 9–15 ENROLLMENT WORKFLOW
+
+For supported Android 9–15 devices, provide the following guided enrollment workflow.
+
+### Step 1 — Customer registration
+
+The user fills all customer and device details.
+
+### Step 2 — Test DPC QR
+
+After successful form submission, show the Test DPC provisioning QR workflow.
+
+The intended Test DPC version is version 12, subject to verification of the actual available release and its compatibility.
+
+Do not hardcode an assumed Test DPC version without verifying that the exact build exists and supports the required provisioning workflow.
+
+The user follows the supported Test DPC setup process.
+
+### Step 3 — AK DeviceLock QR
+
+After the Test DPC step, provide a button:
+
+`Generate AK DeviceLock QR`
+
+When clicked, generate the next provisioning QR for AK DeviceLock.
+
+The user can view or download this QR code.
+
+### Step 4 — Device registration
+
+The AK DeviceLock provisioning flow must be associated with the pending registration created in the backend.
+
+The device must communicate with the AK DeviceLock server and authenticate its enrollment.
+
+After successful verification:
+
+- Complete device registration.
+- Associate the device with its customer.
+- Associate the device with the correct Retailer and Vendor.
+- Consume one entitlement.
+- Update the dashboard.
+- Record the enrollment and registration history.
+
+### Important technical requirements
+
+Do not assume that installing Test DPC automatically transfers Device Owner ownership to AK DeviceLock.
+
+Test DPC is a provisioning/test utility, not a guaranteed production dependency.
+
+Verify the actual Device Owner and DPC state at each stage.
+
+If the intended Test DPC-to-AK DeviceLock transition is unsupported on a particular Android version, provide a documented supported alternative.
+
+A QR that only downloads or installs an APK must never be presented as successful Device Owner provisioning.
+
+---
+
+# 9. ANDROID 16 USB / ADB BAT PROVISIONING WORKFLOW
+
+For Android 16 devices, provide a separate USB/ADB provisioning workflow.
+
+The user must not get access to the BAT file until the customer and device registration form has been completed and validated.
+
+### Workflow
+
+1. User opens Add New Device.
+2. User fills all customer details.
+3. User fills all device details.
+4. Backend validates the account and available entitlement.
+5. Backend creates a pending enrollment session.
+6. User selects Android 16 USB/ADB provisioning.
+7. The dashboard generates a session-specific BAT file.
+8. User downloads the BAT file to a Windows computer.
+9. User connects the mobile device through USB.
+10. User enables Developer Options.
+11. User enables USB Debugging.
+12. User authorizes the connected computer.
+13. User executes the downloaded BAT file.
+14. The BAT file checks the ADB environment.
+15. It checks device connectivity.
+16. It checks USB debugging authorization.
+17. It checks the Android version and provisioning prerequisites.
+18. It executes only supported provisioning commands.
+19. It verifies the expected Device Owner state.
+20. The AK DeviceLock application communicates with the backend.
+21. Backend validates the pending session and device identity.
+22. Registration completes.
+23. One entitlement is consumed.
+24. Device appears in the correct dashboard.
+
+### BAT file requirements
+
+The generated BAT file must:
+
+- Be unique to the pending enrollment session.
+- Contain no permanent private signing keys or reusable secrets.
+- Use a short-lived, restricted session token or securely retrieve authorization through the supported workflow.
+- Check whether ADB is installed or available.
+- Display clear instructions.
+- Check device connectivity.
+- Check USB debugging authorization.
+- Stop when a prerequisite fails.
+- Display useful error messages.
+- Verify provisioning success.
+- Verify Device Owner status.
+- Avoid destructive operations.
+- Never silently bypass Android security.
+- Never report success when provisioning has failed.
+
+### Android 16 technical restrictions
+
+ADB Device Owner provisioning is subject to Android provisioning-state requirements and manufacturer-specific restrictions.
+
+Do not claim that a BAT file can turn any already-configured Android 16 device into a Device Owner-managed device.
+
+If a factory reset, setup-wizard provisioning state, supported QR provisioning or other prerequisite is required, explain it clearly before the user starts.
+
+Test Samsung and other manufacturers individually.
+
+---
+
+# 10. DEVICE AUTHENTICATION AND CRYPTOGRAPHIC KEY MANAGEMENT
+
+Keep commercial device entitlements separate from cryptographic security keys.
+
+The platform needs a secure device identity system.
+
+### Cryptographic architecture
+
+Implement:
+
+- Backend root signing identity
+- Backend command-signing key
+- Device-specific public/private key pair
+- Device authentication credentials
+- Key IDs and versions
+- Key activation and expiry
+- Key rotation
+- Key revocation
+- Audit history
+
+Use a well-supported asymmetric signing algorithm compatible with the backend and Android implementation, such as Ed25519 where library and platform support is verified.
+
+### Security requirements
+
+1. Device private keys must remain inside Android Keystore where supported.
+2. Device private keys must never be uploaded to the backend.
+3. Backend signing private keys must be protected using an appropriate KMS/HSM or protected signing service.
+4. Never store plaintext private keys in PostgreSQL.
+5. Never embed backend private signing keys inside the APK.
+6. Never expose cryptographic secrets in any dashboard.
+7. Associate each device public key with the correct registration.
+8. Support secure key rotation.
+9. Support authorized revocation.
+10. Maintain a complete key lifecycle audit.
+
+A revoked or compromised key must not be able to authorize new operations.
+
+Plan recovery and unlock carefully so that key revocation does not accidentally prevent legitimate device recovery.
+
+---
+
+# 11. REMOTE DEVICE LOCKING SYSTEM
+
+Integrate the existing working Android locking engine into the new platform.
+
+Do not replace it without a documented technical reason.
+
+The backend must support:
+
+- Remote lock
+- Remote unlock
+- Device status
+- Device synchronization
+- Device release
+
+### Command workflow
+
+Operator Dashboard
+
+→ Backend authentication
+
+→ Role permission validation
+
+→ Device ownership validation
+
+→ Command creation
+
+→ Command signing
+
+→ FCM notification
+
+→ Device retrieves command through authenticated HTTPS
+
+→ Device validates command signature
+
+→ Device validates command target
+
+→ Device checks expiry and replay protection
+
+→ Existing LockManager executes the operation
+
+→ Device sends acknowledgment
+
+→ Backend updates command and device status
+
+### Command fields
+
+- command_id
+- device_id
+- command_type
+- issued_at
+- expires_at
+- nonce
+- key_id
+- signature
+- reason
+- created_by
+- execution_status
+
+FCM must be treated only as a notification mechanism.
+
+FCM delivery alone does not authorize a command.
+
+The device must retrieve and validate the command securely.
+
+### Important rules
+
+- Do not execute expired commands.
+- Do not execute replayed commands.
+- Do not execute commands for another device.
+- Do not execute commands signed by an unauthorized key.
+- Do not report success until the device acknowledges actual execution.
+- If the device is offline, display Pending/Waiting for Device.
+- Authorized unlock and release must remain possible through the supported recovery design.
+
+---
+
+# 12. DEVICE RELEASE WORKFLOW
+
+The Superuser must be able to release any authorized device.
+
+Retailers and Vendors may release only devices within their permitted ownership scope.
+
+Release must:
+
+1. Verify the operator's authorization.
+2. Verify device ownership.
+3. Create an auditable release command.
+4. Notify the device.
+5. Execute the supported release procedure.
+6. Receive device acknowledgment.
+7. Update release status.
+8. Preserve customer and registration history.
+9. Preserve the consumed entitlement record.
+
+Releasing a device must never restore its consumed entitlement.
+
+Do not delete historical registration or audit information.
+
+Do not alter Android Factory Reset Protection or unrelated device security settings.
+
+---
+
+# 13. DATABASE ARCHITECTURE
+
+Design a normalized PostgreSQL database.
+
+Suggested Django applications:
+
+- accounts
+- retailers
+- vendors
+- customers
+- devices
+- entitlements
+- enrollment
+- commands
+- notifications
+- keymanagement
+- audit
+- core
+
+### Main models
+
+**Account**
+- id
+- username
+- email
+- password_hash
+- account_type
+- status
+- created_at
+- updated_at
+
+**Retailer**
+- account
+- business_name
+- contact_person
+- address
+- mobile
+- email
+- status
+
+**Vendor**
+- account
+- retailer
+- business_name
+- contact_person
+- address
+- mobile
+- email
+- status
+
+**Customer**
+- full_name
+- mobile
+- email
+- created_by
+- retailer
+- vendor
+- created_at
+
+**Device**
+- device_identifier
+- customer
+- brand
+- model
+- imei_encrypted
+- android_version
+- sdk_version
+- app_version
+- retailer
+- vendor
+- registered_by
+- registration_date
+- enrollment_status
+- device_status
+- last_seen
+- released_at
+
+**EntitlementAllocation**
+- allocated_to
+- allocated_by
+- parent_allocation
+- allocated_quantity
+- consumed_quantity
+- available_quantity
+- issued_at
+- expires_at
+- status
+
+**EntitlementTransfer**
+- sender
+- receiver
+- quantity
+- transferred_by
+- transfer_date
+- reason
+- status
+
+**EntitlementConsumption**
+- allocation
+- device
+- retailer
+- vendor
+- consumed_at
+- registration_reference
+
+**EnrollmentSession**
+- session_id
+- customer
+- pending_device
+- retailer
+- vendor
+- enrollment_method
+- token_hash
+- expires_at
+- status
+- created_at
+
+**DeviceCommand**
+- command_id
+- device
+- command_type
+- created_by
+- signature
+- issued_at
+- expires_at
+- execution_status
+- acknowledgment_time
+
+**DeviceKey**
+- device
+- key_id
+- public_key
+- status
+- activated_at
+- expires_at
+- revoked_at
+
+**AuditLog**
+- actor
+- action
+- target_type
+- target_id
+- retailer
+- vendor
+- timestamp
+- IP address where appropriate
+- metadata
+
+Use Django password hashing and authentication. Never store raw passwords.
+
+Use database constraints, indexes, atomic transactions and append-only records where required.
+
+Do not physically delete entitlement consumption records or critical audit history.
+
+---
+
+# 14. API STRUCTURE
+
+Use versioned REST APIs.
+
+Base path:
+
+`/api/v1/`
+
+### Authentication
+
+- POST `/auth/login/`
+- POST `/auth/logout/`
+- POST `/auth/refresh/`
+
+### Accounts
+
+- GET `/accounts/`
+- POST `/accounts/`
+- GET `/accounts/{id}/`
+- PATCH `/accounts/{id}/`
+- POST `/accounts/{id}/activate/`
+- POST `/accounts/{id}/deactivate/`
+
+Account creation must validate the selected account type and parent hierarchy.
+
+### Retailers
+
+- GET `/retailers/`
+- POST `/retailers/`
+- GET `/retailers/{id}/`
+- PATCH `/retailers/{id}/`
+
+### Vendors
+
+- GET `/vendors/`
+- POST `/vendors/`
+- GET `/vendors/{id}/`
+- PATCH `/vendors/{id}/`
+
+### Entitlements
+
+- POST `/entitlements/allocate/`
+- POST `/entitlements/transfer/`
+- GET `/entitlements/`
+- GET `/entitlements/balance/`
+- GET `/entitlements/history/`
+- GET `/entitlements/consumption/`
+
+### Customers and devices
+
+- POST `/customers/`
+- GET `/customers/`
+- GET `/customers/{id}/`
+- POST `/registrations/`
+- GET `/devices/`
+- GET `/devices/{id}/`
+- POST `/devices/{id}/release/`
+
+### Enrollment
+
+- POST `/enrollment/create/`
+- GET `/enrollment/{id}/status/`
+- POST `/enrollment/{id}/complete/`
+- POST `/enrollment/{id}/cancel/`
+- GET `/enrollment/{id}/qr/`
+- GET `/enrollment/{id}/bat/`
+
+Protect downloads using authenticated, short-lived, session-scoped access.
+
+### Device commands
+
+- POST `/devices/{id}/lock/`
+- POST `/devices/{id}/unlock/`
+- POST `/devices/{id}/sync/`
+- GET `/commands/pending/`
+- POST `/commands/acknowledge/`
+
+### Key management
+
+- POST `/keys/rotate/`
+- POST `/keys/revoke/`
+- POST `/devices/{id}/keys/register/`
+
+Every endpoint must enforce authentication, role permissions and device ownership.
+
+---
+
+# 15. AUDIT LOGGING
+
+Implement a complete audit system.
+
+The Superuser must be able to see all platform activities.
+
+Retailers must see activities within their own hierarchy.
+
+Vendors must see only their own permitted activities.
+
+Record:
+
+- Account creation
+- Account updates
+- Account activation/deactivation
+- Entitlement allocation
+- Entitlement transfer
+- Entitlement consumption
+- Customer registration
+- Device registration
+- QR generation
+- BAT generation/download
+- Enrollment attempts
+- Enrollment success/failure
+- Device lock
+- Device unlock
+- Device synchronization
+- Device release
+- Key creation
+- Key rotation
+- Key revocation
+- Unauthorized access attempts
+
+Audit records must include actor, action, target, timestamp and relevant context.
+
+Sensitive information, passwords, access tokens and private keys must never be written into audit logs.
+
+Make critical audit records append-only.
+
+---
+
+# 16. NOTIFICATIONS AND DEVICE STATUS
+
+Provide useful device status indicators:
+
+- Pending Enrollment
+- Enrollment Failed
+- Registered
+- Online
+- Offline
+- Lock Pending
+- Locked
+- Unlock Pending
+- Unlocked
+- Release Pending
+- Released
+- Disabled
+
+Do not confuse account status, allocation status, enrollment status and device status.
+
+Use separate status fields.
+
+The dashboard must show actual acknowledged state, not just requested state.
+
+---
+
+# 17. SECURITY REQUIREMENTS
+
+Implement:
+
+- HTTPS-only production communication
+- Secure authentication
+- Refresh-token rotation
+- Password hashing
+- Rate limiting
+- API authorization
+- Tenant isolation
+- CSRF protection where applicable
+- Input validation
+- SQL injection protection through ORM and safe queries
+- Secure file downloads
+- Short-lived enrollment tokens
+- Replay protection
+- Cryptographic command verification
+- Secret management
+- Database backups
+- Security audit logs
+- Restricted administrative actions
+
+Never expose secrets in frontend code, APK files, BAT files, QR payloads or logs.
+
+All sensitive actions must require backend authorization.
+
+---
+
+# 18. AUTOMATED TESTING REQUIREMENTS
+
+Create automated tests for the following scenarios.
+
+### User hierarchy
+
+1. Superuser can create Retailers.
+2. Superuser can create Vendors.
+3. Retailer can create its own Vendors.
+4. Vendor cannot create another account level.
+5. Retailer A cannot access Retailer B.
+6. Vendor A cannot access Vendor B.
+
+### Device ownership
+
+7. Vendor A can view its own registered device.
+8. Vendor A cannot view Vendor B's device.
+9. Vendor A cannot lock Vendor B's device.
+10. Vendor A cannot unlock Vendor B's device.
+11. Vendor A cannot access Vendor B's customer.
+12. Vendor A cannot download Vendor B's QR or BAT file.
+13. Retailer A can view its own Vendor devices.
+14. Retailer A cannot view Retailer B's devices.
+15. Superuser can view all devices.
+16. UUID or device ID manipulation cannot bypass permissions.
+
+### Entitlements
+
+17. Superuser allocation updates balances correctly.
+18. Retailer allocation updates Vendor balances.
+19. Vendor transfer updates sender and receiver balances.
+20. Cross-Retailer transfers are blocked.
+21. Consumed entitlements cannot be transferred.
+22. Concurrent registrations cannot double-consume an entitlement.
+23. QR generation does not consume an entitlement.
+24. Failed enrollment does not consume an entitlement.
+25. Successful registration consumes exactly one entitlement.
+26. Release never restores an entitlement.
+27. Expired allocations cannot be used for new registrations.
+
+### Enrollment and commands
+
+28. Enrollment sessions expire.
+29. Enrollment sessions cannot be reused.
+30. Enrollment is bound to the intended account and device.
+31. Unauthorized command creation is blocked.
+32. Expired commands are rejected.
+33. Replayed commands are rejected.
+34. Device acknowledgments update actual status.
+35. Offline devices are not falsely marked locked.
+36. Release preserves historical records.
+
+Run tests after every milestone.
+
+---
+
+# 19. DEVELOPMENT MILESTONES
+
+Build in this order.
+
+**Milestone 1 — Existing Project Audit**
+- Inspect existing Android source.
+- Inspect current LockManager.
+- Back up the project.
+- Document Android 8–16 behavior.
+- Establish regression tests.
+
+**Milestone 2 — Complete UI/UX Design**
+- Design the Superuser dashboard.
+- Design the Retailer dashboard.
+- Design the Vendor dashboard.
+- Design account creation.
+- Design device registration.
+- Design device lists and details.
+- Design entitlement management.
+- Design enrollment screens.
+- Design audit history.
+
+**Milestone 3 — Django Backend Foundation**
+- Django project setup.
+- PostgreSQL configuration.
+- Authentication.
+- API structure.
+- Environment configuration.
+
+**Milestone 4 — Three-Level Account System**
+- Superuser
+- Retailer
+- Vendor
+- Parent-child hierarchy
+- Permissions
+
+**Milestone 5 — Entitlement Allocation System**
+- Superuser allocation
+- Retailer distribution
+- Vendor allocation
+- Vendor-to-Vendor eligible transfer
+- Expiry
+- Consumption ledger
+
+**Milestone 6 — Customer Registration**
+
+**Milestone 7 — Device Registration and Ownership Isolation**
+
+**Milestone 8 — Android 9–15 Enrollment Workflow**
+
+**Milestone 9 — Android 16 USB/ADB BAT Workflow**
+
+**Milestone 10 — Device Authentication and Cryptographic Key Management**
+
+**Milestone 11 — Integrate Existing Android Locking Mechanism**
+
+**Milestone 12 — Remote Lock/Unlock/Sync/Release**
+
+**Milestone 13 — FCM and Offline Command Processing**
+
+**Milestone 14 — Complete Superuser Dashboard**
+
+**Milestone 15 — Complete Retailer Dashboard**
+
+**Milestone 16 — Complete Vendor Dashboard**
+
+**Milestone 17 — Audit Logs and Notifications**
+
+**Milestone 18 — Automated Security and Tenant Isolation Testing**
+
+**Milestone 19 — Android 8–16 Compatibility and Regression Testing**
+
+**Milestone 20 — Ubuntu Production Deployment**
+
+---
+
+# 20. FINAL EXPECTED RESULT
+
+The final product must be a complete centralized Android Device Management Platform.
+
+The Superuser must have complete platform-wide control.
+
+Retailers must manage their own accounts, Vendors, entitlements and devices.
+
+Vendors must manage their own customers and registered devices.
+
+Entitlements must be allocated, transferred, consumed and audited correctly.
+
+Device ownership must be strictly isolated.
+
+The customer registration workflow must generate the correct Android enrollment process.
+
+Android 9–15 must use the supported QR provisioning workflow.
+
+Android 16 must use the supported USB/ADB BAT provisioning workflow, with all Android provisioning restrictions handled correctly.
+
+The Android application must securely authenticate with the backend.
+
+Remote lock and unlock must work through authenticated, signed commands.
+
+The existing working Android locking mechanism must remain intact unless a verified technical issue requires a change.
+
+The entire application must have a clean, professional UI, secure backend, normalized database, complete audit history and production-ready deployment architecture.
+
+## FINAL INSTRUCTION TO THE CODING AGENT
+
+Start with **Milestone 1: Existing Project Audit**.
+
+Do not immediately generate all code.
+
+First inspect the available project, identify the existing Android locking implementation, explain the proposed architecture and create a development plan.
+
+After that, proceed one milestone at a time.
+
+For every milestone:
+
+1. Explain what will be built.
+2. Identify the files and modules involved.
+3. Implement the feature.
+4. Run appropriate tests.
+5. Fix errors before proceeding.
+6. Report what is completed and what remains.
+
+Do not mark a feature complete merely because code has been generated. Mark it complete only after its relevant tests and verification pass.

@@ -95,7 +95,7 @@ class CommandPollService : Service() {
             val state = AppState(this)
             if (!state.isRegistered && AkDeviceAdminReceiver.isDeviceOwner(this)) {
                 val url = state.serverUrl.ifBlank { getString(R.string.default_server_url) }
-                val key = state.pendingEnrollmentKey.ifBlank { getString(R.string.default_enrollment_key) }
+                val key = state.pendingEnrollmentKey
                 if (url.isNotEmpty() && key.isNotEmpty()) {
                     if (online()) {
                         val err = Enrollment.register(this, url, key)

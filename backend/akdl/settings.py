@@ -4,7 +4,10 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DEBUG = os.environ.get("AKDL_DEBUG", "1") == "1"
-SECRET_KEY = os.environ.get("AKDL_SECRET_KEY", "dev-only-insecure-key" if DEBUG else None)
+SECRET_KEY = os.environ.get(
+    "AKDL_SECRET_KEY",
+    "dev-only-insecure-key-min-32-bytes-long!" if DEBUG else None,
+)
 if not SECRET_KEY:
     raise RuntimeError("AKDL_SECRET_KEY must be set when AKDL_DEBUG=0")
 ALLOWED_HOSTS = os.environ.get("AKDL_ALLOWED_HOSTS", "*" if DEBUG else "").split(",")
@@ -20,8 +23,8 @@ MAX_COMMAND_TTL = 7 * 24 * 3600
 INSTALLED_APPS = [
     "django.contrib.admin", "django.contrib.auth", "django.contrib.contenttypes",
     "django.contrib.sessions", "django.contrib.messages", "django.contrib.staticfiles",
-    "rest_framework",
-    "accounts", "roles", "devices", "commands", "notifications", "keymanagement", "audit",
+    "rest_framework", "rest_framework_simplejwt.token_blacklist",
+    "accounts", "roles", "entitlements", "devices", "commands", "notifications", "keymanagement", "audit",
 ]
 
 KEY_STORAGE_DIR = os.environ.get("AKDL_KEY_STORAGE_DIR", str(BASE_DIR / "secrets" / "keys"))
@@ -86,13 +89,31 @@ LOGIN_URL = "/admin/login/"
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
         "rest_framework.authentication.SessionAuthentication",
-        "rest_framework.authentication.BasicAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAdminUser"],
     "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.AnonRateThrottle", "rest_framework.throttling.UserRateThrottle"],
-    "DEFAULT_THROTTLE_RATES": {"anon": "30/min", "user": "120/min", "device": "60/min"},
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "30/min", "user": "120/min", "device": "60/min",
+        "login": os.environ.get("AKDL_LOGIN_RATE", "10/min"),
+        "refresh": os.environ.get("AKDL_REFRESH_RATE", "30/min"),
+    },
     "EXCEPTION_HANDLER": "akdl.errors.safe_exception_handler",
+}
+
+# JWT: short-lived access token, rotating + blacklisted refresh token (reuse of an old refresh is rejected).
+from datetime import timedelta  # noqa: E402
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=int(os.environ.get("AKDL_JWT_ACCESS_MINUTES", "15"))),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=int(os.environ.get("AKDL_JWT_REFRESH_DAYS", "7"))),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "UPDATE_LAST_LOGIN": True,
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": SECRET_KEY,
+    "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
 if not DEBUG:
@@ -102,3 +123,7 @@ if not DEBUG:
         SESSION_COOKIE_SECURE = True
         CSRF_COOKIE_SECURE = True
         SECURE_HSTS_SECONDS = 31536000
+
+CELERY_BROKER_URL = os.environ.get("AKDL_CELERY_BROKER_URL", "")
+CELERY_RESULT_BACKEND = os.environ.get("AKDL_CELERY_RESULT_BACKEND", CELERY_BROKER_URL)
+CELERY_TASK_ALWAYS_EAGER = not bool(CELERY_BROKER_URL)

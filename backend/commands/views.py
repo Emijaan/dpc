@@ -61,8 +61,16 @@ class AcknowledgeView(DeviceBase):
             elif cmd.command_type == DeviceCommand.Type.RELEASE:
                 device.restriction_status = Device.Restriction.NONE
                 device.enrollment_status = Device.Enrollment.RELEASED
+                device.ownership_status = Device.OwnershipStatus.RELEASED
+                if not device.released_at:
+                    device.released_at = timezone.now()
         else:
             cmd.command_status = DeviceCommand.Status.FAILED
+            if cmd.command_type == DeviceCommand.Type.LOCK and device.restriction_status == Device.Restriction.LOCK_PENDING:
+                device.restriction_status = Device.Restriction.NONE
+            elif cmd.command_type in (DeviceCommand.Type.UNLOCK, DeviceCommand.Type.RELEASE):
+                if device.restriction_status in (Device.Restriction.UNLOCK_PENDING, Device.Restriction.RELEASE_PENDING):
+                    device.restriction_status = Device.Restriction.LOCKED
         cmd.executed_at = timezone.now()
         cmd.execution_result = d["result"]
         cmd.save()

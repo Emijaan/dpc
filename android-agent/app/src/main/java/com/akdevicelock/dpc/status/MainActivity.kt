@@ -49,6 +49,16 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         renderedKey = ""
+        val extraUrl = intent?.getStringExtra("server_url")
+        val extraKey = intent?.getStringExtra("enrollment_key")
+        if (!extraUrl.isNullOrBlank() && !extraKey.isNullOrBlank()) {
+            AppState(this).apply {
+                if (!isRegistered) {
+                    serverUrl = extraUrl
+                    pendingEnrollmentKey = extraKey
+                }
+            }
+        }
         EnrollmentProtection.enforce(this)
         AkDeviceAdminReceiver.ensureDefaultsAndStart(this)
         if (AppState(this).isRegistered) CommandPollService.start(this)
@@ -267,7 +277,7 @@ class MainActivity : Activity() {
                 setTextColor(Color.parseColor("#60A5FA"))
             })
             val defaultUrl = state.serverUrl.ifBlank { getString(R.string.default_server_url) }
-            val defaultKey = state.pendingEnrollmentKey.ifBlank { getString(R.string.default_enrollment_key) }
+            val defaultKey = state.pendingEnrollmentKey
             val urlInput = EditText(this).apply {
                 hint = "Server URL"
                 setText(defaultUrl)
@@ -275,7 +285,7 @@ class MainActivity : Activity() {
                 setHintTextColor(Color.parseColor("#64748B"))
             }
             val keyInput = EditText(this).apply {
-                hint = "Enrollment Key"
+                hint = "Paste Session Enrollment Key from Dashboard"
                 setText(defaultKey)
                 setTextColor(Color.WHITE)
                 setHintTextColor(Color.parseColor("#64748B"))

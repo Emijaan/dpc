@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AK DeviceLock — Design Prototype</title>
+<style>
+:root{--bg:#f8fafc;--sf:#fff;--bd:#e2e8f0;--tx:#0f172a;--mu:#64748b;--pr:#4f46e5;--prh:#4338ca;--ok:#16a34a;--wa:#f59e0b;--er:#dc2626;--in:#94a3b8}
+*{box-sizing:border-box}body{margin:0;font:14px/1.45 Inter,system-ui,sans-serif;background:var(--bg);color:var(--tx)}
+.app{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
+aside{background:var(--sf);border-right:1px solid var(--bd);padding:16px 12px}
+.logo{font-weight:700;font-size:16px;padding:4px 10px 16px}
+nav a{display:block;padding:8px 10px;border-radius:8px;color:var(--mu);text-decoration:none;cursor:pointer;margin-bottom:2px}
+nav a:hover{background:var(--bg);color:var(--tx)}nav a.on{background:#eef2ff;color:var(--pr);font-weight:600}
+header{display:flex;justify-content:space-between;align-items:center;padding:12px 24px;background:var(--sf);border-bottom:1px solid var(--bd)}
+main{padding:24px;max-width:1200px}
+h1{font-size:20px;margin:0 0 4px}.sub{color:var(--mu);margin-bottom:16px}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));background:var(--sf);border:1px solid var(--bd);border-radius:8px;margin-bottom:20px}
+.stat{padding:14px 16px;border-right:1px solid var(--bd)}.stat:last-child{border:0}
+.stat b{display:block;font-size:22px;margin-top:2px}.stat span{color:var(--mu);font-size:12px}
+.card{background:var(--sf);border:1px solid var(--bd);border-radius:8px;padding:16px;margin-bottom:16px}
+.card h2{font-size:14px;margin:0 0 12px}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--bd);font-size:13px}
+th{color:var(--mu);font-weight:600;font-size:12px}tr:last-child td{border:0}
+.tw{overflow-x:auto}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid}
+.b-ok{color:var(--ok);border-color:#bbf7d0;background:#f0fdf4}.b-wa{color:#b45309;border-color:#fde68a;background:#fffbeb}
+.b-er{color:var(--er);border-color:#fecaca;background:#fef2f2}.b-in{color:var(--mu);border-color:var(--bd);background:var(--bg)}
+button,.btn{font:inherit;border:1px solid var(--bd);background:var(--sf);border-radius:8px;padding:7px 12px;cursor:pointer;color:var(--tx)}
+.p{background:var(--pr);border-color:var(--pr);color:#fff}.p:hover{background:var(--prh)}
+.d{color:var(--er);border-color:#fecaca}
+input,select{font:inherit;border:1px solid var(--bd);border-radius:8px;padding:8px 10px;width:100%;background:#fff}
+label{display:block;font-size:12px;color:var(--mu);margin-bottom:4px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.steps{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.step{padding:6px 12px;border-radius:999px;border:1px solid var(--bd);color:var(--mu);font-size:13px}
+.step.on{background:#eef2ff;color:var(--pr);border-color:#c7d2fe;font-weight:600}.step.done{color:var(--ok)}
+.note{background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:10px 12px;margin:12px 0}
+.warn{background:#fffbeb;border:1px solid #fde68a}
+.qr{width:140px;height:140px;background:repeating-conic-gradient(#0f172a 0 25%,#fff 0 50%) 0/20px 20px;border:8px solid #fff;outline:1px solid var(--bd)}
+.modal{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;align-items:center;justify-content:center}
+.modal.on{display:flex}.modal>div{background:#fff;border-radius:8px;padding:20px;width:min(420px,92vw);box-shadow:0 10px 30px rgba(0,0,0,.2)}
+.empty{text-align:center;color:var(--mu);padding:28px}
+@media(max-width:800px){.app{grid-template-columns:1fr}aside{display:flex;overflow-x:auto;padding:8px;border-right:0;border-bottom:1px solid var(--bd)}
+.logo{display:none}nav{display:flex;gap:4px}nav a{white-space:nowrap}main{padding:16px}}
+</style></head><body>
+<div class="app">
+<aside><div class="logo">AK DeviceLock</div><nav id="nav"></nav></aside>
+<div><header><div class="sub" style="margin:0" id="who"></div>
+<div class="row"><label style="margin:0">View as</label>
+<select id="role" style="width:auto"><option value="su">Superuser</option><option value="re">Retailer</option><option value="ve">Vendor</option></select></div></header>
+<main id="main"></main></div></div>
+<div class="modal" id="modal"><div id="mbody"></div></div>
+<script>
+const ROLES={
+ su:{name:"Platform Owner",tag:"Superuser",nav:["Dashboard","Retailers","Vendors","Entitlements","Customers","Devices","Add Device","Commands","Audit log","Security"]},
+ re:{name:"Acme Finance",tag:"Retailer",nav:["Dashboard","Vendors","Entitlements","Customers","Devices","Add Device","Commands","Audit log"]},
+ ve:{name:"City Mobiles",tag:"Vendor",nav:["Dashboard","Entitlements","Customers","Devices","Add Device","Commands","Audit log"]}};
+const STATS={
+ su:[["Retailers",12],["Vendors",48],["Devices",1204],["Online",731],["Locked",96],["Entitlements available",860]],
+ re:[["Allocated",200],["Distributed",120],["Consumed",64],["Available",16],["Active",58],["Inactive",4],["Released",2],["Vendors",6]],
+ ve:[["Allocated",40],["Consumed",22],["Available",18],["Devices",22],["Locked",3],["Expires","12 Mar 2027"]]};
+const DEVS=[["AKD-10231","Samsung A15","R. Sharma","••••••••3809","14","ok:Online","ok:Registered","Unlocked"],
+["AKD-10232","vivo 1902","S. Khan","••••••••7712","9","in:Offline","ok:Registered","Locked"],
+["AKD-10233","Samsung X115","M. Rao","••••••••1190","16","wa:Pending","wa:Pending enrollment","—"]];
+let role="su",page="Dashboard",step=1,method="qr";
+const $=s=>document.querySelector(s);
+const badge=v=>{const[a,b]=v.split(":");return`<span class="badge b-${a}">${b}</span>`};
+function nav(){$("#nav").innerHTML=ROLES[role].nav.map(n=>`<a class="${n==page?"on":""}" onclick="go('${n}')">${n}</a>`).join("");
+ $("#who").innerHTML=`<b>${ROLES[role].name}</b> · ${ROLES[role].tag}`}
+function go(p){page=p;step=1;render()}
+function table(h,rows){return`<div class="tw"><table><tr>${h.map(x=>`<th>${x}</th>`).join("")}</tr>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join("")}</tr>`).join("")}</table></div>`}
+function filters(){return`<div class="row" style="margin-bottom:12px"><input placeholder="Search name, mobile, IMEI, device ref" style="max-width:320px">
+${role=="su"?`<select style="width:auto"><option>All retailers</option></select><select style="width:auto"><option>All vendors</option></select>`:""}
+<select style="width:auto"><option>Any device status</option><option>Online</option><option>Locked</option><option>Released</option></select>
+<select style="width:auto"><option>Any Android</option><option>9</option><option>14</option><option>16</option></select>
+${role=="su"?`<button>More filters</button>`:""}</div>`}
+const V={
+Dashboard(){const rec=table(["Device","Customer","Status","When"],DEVS.slice(0,2).map(d=>[d[0],d[2],badge(d[6]),"Today"]));
+ return`<h1>Dashboard</h1><div class="sub">${ROLES[role].tag} overview</div>
+ <div class="stats">${STATS[role].map(s=>`<div class="stat"><span>${s[0]}</span><b>${s[1]}</b></div>`).join("")}</div>
+ <div class="note warn">2 allocations expire within 30 days. Expired allocations cannot register new devices; registered devices keep working.</div>
+ <div class="card"><h2>Recent registrations</h2>${rec}</div>
+ <div class="card"><h2>Recent commands</h2>${table(["Device","Command","Status","Issued"],[["AKD-10232","Lock",badge("ok:Executed"),"10:02"],["AKD-10231","Unlock",badge("wa:Waiting for device"),"10:05"]])}</div>`},
+Retailers(){return`<div class="row" style="justify-content:space-between"><div><h1>Retailers</h1><div class="sub">Create and manage retailer accounts</div></div><button class="p" onclick="acct('Retailer')">+ New retailer</button></div>
+ <div class="card">${filters()}${table(["Business","Contact","Allocated","Used","Expires","Status"],[["Acme Finance","A. Verma",200,64,"12 Mar 2027",badge("ok:Active")],["Zenith Mobiles","P. Iyer",150,150,"01 Jan 2027",badge("er:Deactivated")]])}</div>`},
+Vendors(){return`<div class="row" style="justify-content:space-between"><div><h1>Vendors</h1><div class="sub">${role=="re"?"Vendors under your account":"All vendors"}</div></div><button class="p" onclick="acct('Vendor')">+ New vendor</button></div>
+ <div class="card">${filters()}${table(["Shop","Retailer","Allocated","Used","Available","Status"],[["City Mobiles",role=="su"?"Acme Finance":"You",40,22,18,badge("ok:Active")],["Metro Phones",role=="su"?"Acme Finance":"You",30,5,25,badge("ok:Active")]])}</div>`},
+Entitlements(){const act=role=="su"?"Allocate":role=="re"?"Distribute to vendor":"Transfer to vendor";
+ return`<div class="row" style="justify-content:space-between"><div><h1>Entitlements</h1><div class="sub">One entitlement = one successfully registered device</div></div><button class="p" onclick="ent('${act}')">${act}</button></div>
+ <div class="stats">${(role=="ve"?[["Allocated",40],["Consumed",22],["Available",18]]:[["Allocated",200],["Distributed",120],["Consumed",64],["Available",16]]).map(s=>`<div class="stat"><span>${s[0]}</span><b>${s[1]}</b></div>`).join("")}</div>
+ <div class="card"><h2>Allocations</h2>${table(["Issued","Expires","Qty","Used","Available","Status"],[["12 Mar 2026","12 Mar 2027",100,64,36,badge("ok:Active")],["01 Jan 2025","01 Jan 2026",50,50,0,badge("in:Expired")]])}</div>
+ <div class="card"><h2>Ledger (append-only)</h2>${table(["Time","Type","From → To","Qty","Ref"],[["10:12","Consumption","City Mobiles → device AKD-10231",1,"REG-0091"],["09:40","Transfer","City Mobiles → Metro Phones",2,"TRF-0012"],["Yesterday","Allocation","Acme Finance → City Mobiles",40,"ALC-0007"]])}</div>`},
+Customers(){return`<h1>Customers</h1><div class="sub">Mobile and email are masked by default</div><div class="card">${filters()}${table(["Name","Mobile","Email","Devices","Registered by"],[["R. Sharma","••••••3210","r•••@mail.com",1,"City Mobiles"],["S. Khan","••••••8841","s•••@mail.com",1,"City Mobiles"]])}</div>`},
+Devices(){return`<h1>Devices</h1><div class="sub">${role=="su"?"All devices on the platform":"Devices in your scope"}</div>
+ <div class="card">${filters()}${table(["Ref","Model","Customer","IMEI","Android","Connection","Enrollment","Restriction",""],DEVS.map(d=>[d[0],d[1],d[2],d[3],d[4],badge(d[5]),badge(d[6]),d[7],`<button onclick="dev('${d[0]}')">Manage</button>`]))}
+ <div class="row" style="justify-content:space-between;margin-top:8px;color:var(--mu)"><span>1–3 of 3</span><span><button>Prev</button> <button>Next</button></span></div></div>`},
+"Add Device"(){const S=["Customer","Device","Review","Enroll"];
+ const hd=`<h1>Add device</h1><div class="sub">No entitlement is used until the device finishes enrolling</div><div class="steps">${S.map((s,i)=>`<div class="step ${i+1==step?"on":i+1<step?"done":""}">${i+1<step?"✓ ":""}${i+1}. ${s}</div>`).join("")}</div>`;
+ const nxt=(l,n)=>`<div class="row" style="margin-top:16px">${step>1?`<button onclick="step--;render()">Back</button>`:""}<button class="p" onclick="step=${n};render()">${l}</button></div>`;
+ if(step==1)return hd+`<div class="card grid"><div><label>Full name *</label><input></div><div><label>Mobile number *</label><input></div><div><label>Email address *</label><input></div></div>`+nxt("Continue",2);
+ if(step==2)return hd+`<div class="card grid"><div><label>Brand *</label><input></div><div><label>Model *</label><input></div><div><label>IMEI *</label><input placeholder="15 digits"></div>
+  <div><label>Android version *</label><select onchange="method=this.value=='16'?'usb':this.value=='8'?'no':'qr';render2()"><option>14</option><option>9</option><option value="16">16</option><option value="8">8</option></select></div></div><div class="note" id="mnote">Suggested method: QR provisioning (Android 9–15)</div>`+nxt("Continue",3);
+ if(step==3)return hd+`<div class="card"><h2>Review</h2>${table(["Field","Value"],[["Customer","R. Sharma"],["Device","Samsung A15 · Android 14"],["Registered by",ROLES[role].name],["Entitlements available","18 (none used yet)"],["Method","QR provisioning"]])}</div>`+nxt("Create pending registration",4);
+ return hd+`<div class="card"><h2>Enroll — QR provisioning (Android 9–15)</h2>
+  <div class="note"><b>A.</b> Factory-reset, tap the Welcome screen 6×, scan the <b>Test DPC</b> QR.</div><div class="qr"></div>
+  <div class="row" style="margin:12px 0"><button class="p">Generate AK DeviceLock QR</button><span class="badge b-wa">Waiting for device…</span></div>
+  <div class="note warn">Session expires in 14:32. Failed or expired enrollments never consume an entitlement.</div></div>
+  <div class="card"><h2>Alternative — Android 16 USB/ADB</h2><div class="note warn">Before downloading: device must be factory-fresh, no accounts, Auto Blocker off, USB debugging on.</div>
+  <label><input type="checkbox" style="width:auto"> I have completed these prerequisites</label><div class="row" style="margin-top:8px"><button disabled>Download .bat (session-scoped)</button></div></div>`},
+Commands(){return`<h1>Commands</h1><div class="sub">Status reflects the device's acknowledgment</div><div class="card">${filters()}${table(["Device","Command","Status","By","Issued"],[["AKD-10232","Lock",badge("ok:Executed"),"City Mobiles","10:02"],["AKD-10231","Unlock",badge("wa:Waiting for device"),"Acme Finance","10:05"],["AKD-10230","Lock",badge("er:Expired"),"City Mobiles","Yesterday"]])}</div>`},
+"Audit log"(){return`<h1>Audit log</h1><div class="sub">Read-only · secrets are never recorded</div><div class="card">${filters()}${table(["Time","Actor","Action","Target","Result","IP"],[["10:12","City Mobiles","Device registered","AKD-10231","Success","203.0.113.5"],["10:09","Vendor B","Device lock","AKD-10232","Denied (403)","198.51.100.7"]])}</div>`},
+Security(){return`<h1>Security &amp; cryptographic keys</h1><div class="sub">Command-signing keys only — not commercial entitlements</div><div class="card"><div class="row"><button class="p">Rotate command key</button><button class="d">Revoke…</button></div>${table(["Key ID","Algorithm","Version","Status","Expires"],[["a3f9…","ECDSA P-256","v2",badge("ok:Active"),"2027-03"],["77c1…","ECDSA P-256","v1",badge("in:Rotated"),"2026-12"]])}</div>`}
+};
+function render(){nav();$("#main").innerHTML=V[page]()}
+function render2(){const n=$("#mnote");if(n)n.textContent=method=="usb"?"Suggested method: USB/ADB .bat (Android 16)":method=="no"?"Android 8 is not supported.":"Suggested method: QR provisioning (Android 9–15)"}
+function open(h){$("#mbody").innerHTML=h;$("#modal").classList.add("on")}
+function close(){$("#modal").classList.remove("on")}
+$("#modal").onclick=e=>{if(e.target.id=="modal")close()};
+function acct(t){open(`<h2>New ${t}</h2><div class="grid" style="grid-template-columns:1fr 1fr"><div><label>Full name</label><input></div><div><label>Business name</label><input></div><div><label>Contact person</label><input></div><div><label>Mobile</label><input></div><div><label>Email</label><input></div><div><label>Username</label><input></div><div><label>Allocation qty</label><input type="number"></div><div><label>Expires (issue + 365 d)</label><input disabled value="auto"></div></div>
+ ${t=="Vendor"&&role=="su"?`<label style="margin-top:8px">Parent retailer</label><select><option>Acme Finance</option></select>`:""}<div class="row" style="margin-top:14px;justify-content:flex-end"><button onclick="close()">Cancel</button><button class="p" onclick="close()">Create ${t}</button></div>`)}
+function ent(a){open(`<h2>${a}</h2><label>Recipient</label><select><option>City Mobiles</option></select><label style="margin-top:8px">Quantity</label><input type="number" value="5"><div class="note">After: sender 11 available · recipient 23 available. Only unused entitlements can move; consumed ones never can.</div><div class="row" style="justify-content:flex-end"><button onclick="close()">Cancel</button><button class="p" onclick="close()">Confirm</button></div>`)}
+function dev(r){open(`<h2>${r}</h2><div class="row" style="margin-bottom:10px">${badge("ok:Online")}${badge("ok:Registered")}${badge("er:Locked")}</div><div class="note">Commands show “Waiting for device” until acknowledged.</div><div class="row"><button class="d" onclick="open2('Lock')">Lock</button><button onclick="open2('Unlock')">Unlock</button><button>Sync</button><button class="d" onclick="open2('Release')">Release…</button></div><div class="row" style="justify-content:flex-end;margin-top:12px"><button onclick="close()">Close</button></div>`)}
+function open2(a){open(`<h2>${a} device?</h2><p>${a=="Release"?"Releasing is permanent and never restores the consumed entitlement. Type the device reference to confirm.":"This sends a signed command to the device."}</p>${a=="Release"?"<input placeholder='AKD-10231'>":""}<div class="row" style="justify-content:flex-end;margin-top:12px"><button onclick="close()">Cancel</button><button class="p" onclick="close()">${a}</button></div>`)}
+$("#role").onchange=e=>{role=e.target.value;page="Dashboard";step=1;render()};
+render();
+</script></body></html>

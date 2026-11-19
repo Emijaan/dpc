@@ -9,3 +9,6 @@ build/
 local.properties
 .idea/
 *.iml
+frontend/node_modules/
+frontend/dist/
+*.tsbuildinfo

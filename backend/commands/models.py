@@ -1,5 +1,6 @@
 import uuid
 
+from django.conf import settings
 from django.db import models
 
 
@@ -30,6 +31,22 @@ class DeviceCommand(models.Model):
     nonce = models.CharField(max_length=64)
     key_id = models.CharField(max_length=64, blank=True, default="")
     signature = models.TextField(blank=True)
+    issued_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="issued_commands",
+    )
+    enrollment_session = models.ForeignKey(
+        "devices.EnrollmentSession",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="commands",
+    )
+    retailer_id_snapshot = models.IntegerField(null=True, blank=True)
+    vendor_id_snapshot = models.IntegerField(null=True, blank=True)
 
     class Meta:
         ordering = ["-issued_at"]

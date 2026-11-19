@@ -12,9 +12,10 @@
 
 | Android Version | Tested / Supported | Recommended Provisioning Method | Notes |
 |---|---|---|---|
-| **Android 9 – 11** | Tested on Vivo 1902 (Android 9) | **Method B (1-Step Direct QR)** or `provision_usb.bat` | Direct QR installs `akdevicelock.apk` and sets Device Owner in one scan |
-| **Android 12 – 15** | Supported | **Method A (2-Step `Test DPC 9.0.12` + `transferOwnership`)** | Bypasses Setup Wizard Play Protect block; `Test DPC 9.0.12` supports ownership transfer and is auto-hidden afterward |
-| **Android 16+** | Tested on Samsung `SM-X115` (Android 16, SDK 36) | **`provision_usb.bat`** (0 accounts, Auto Blocker OFF) or KME / Zero-Touch | `Test DPC 9.0.12` crashes in `PostProvisioningTask` on API 36; `Test DPC 9.0.16` disabled `transferOwnership` |
+| **Android 8 (SDK 26–27)** | **Not supported** (`minSdk 28`) | N/A | Excluded by `minSdk 28`; `setLockTaskFeatures` requires API 28+. |
+| **Android 9 – 11** | Tested on Vivo 1902 (Android 9) | **Method B (1-Step Direct QR)** or session `.bat` | Direct QR installs `akdevicelock.apk` and sets Device Owner in one scan. |
+| **Android 12 – 15** | Design-supported (untested on hardware here) | **Method A (2-Step `Test DPC 9.0.12` + `transferOwnership`)** | Bypasses Setup Wizard Play Protect block; `Test DPC 9.0.12` is auto-hidden afterward. |
+| **Android 16+** | Registration & restrictions tested on Samsung `SM-X115` (Android 16, SDK 36) | **Session-scoped `.bat`** (0 accounts, Auto Blocker OFF) | `Test DPC 9.0.12` crashes on API 36; `Test DPC 9.0.16` disabled `transferOwnership`. Lock/unlock on A16 not yet recorded on hardware. |
 
 ## 3. Security Architecture
 

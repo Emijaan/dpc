@@ -8,6 +8,10 @@ PERMISSION_DEFINITIONS = {
     "devices.unlock": "Issue DEVICE_UNLOCK commands",
     "devices.sync": "Issue DEVICE_SYNC / DEVICE_STATUS commands",
     "devices.release": "Issue DEVICE_RELEASE commands",
+    "devices.transfer": "Transfer device ownership (Superuser only)",
+    "customers.view": "View customer records",
+    "customers.manage": "Create and manage customer records",
+    "enrollments.manage": "Create and view enrollment sessions and QR codes",
     "commands.view": "View command history and results",
     "roles.manage": "Create/edit roles, assign/revoke permissions, assign user roles",
     "accounts.manage": "Create and activate/deactivate operator accounts",
@@ -20,7 +24,18 @@ DEFAULT_ROLES = {
     "SUPER_ADMIN": list(PERMISSION_DEFINITIONS.keys()),
     "ADMIN": [
         "devices.view", "devices.lock", "devices.unlock", "devices.sync",
+        "customers.view", "customers.manage", "enrollments.manage",
         "commands.view", "keys.view", "audit.view",
+    ],
+    "RETAILER": [
+        "devices.view", "devices.lock", "devices.unlock", "devices.sync", "devices.release",
+        "customers.view", "customers.manage", "enrollments.manage",
+        "commands.view", "accounts.manage", "audit.view",
+    ],
+    "VENDOR": [
+        "devices.view", "devices.lock", "devices.unlock", "devices.sync", "devices.release",
+        "customers.view", "customers.manage", "enrollments.manage",
+        "commands.view", "audit.view",
     ],
     "OPERATOR": [
         "devices.view", "devices.lock", "devices.unlock", "devices.sync", "commands.view",
@@ -43,6 +58,8 @@ def ensure_default_rbac():
         )
         if created or not role.permissions.exists():
             role.permissions.set([perms[c] for c in codes])
+        elif role_name in ("RETAILER", "VENDOR") and not role.permissions.filter(code="devices.release").exists():
+            role.permissions.add(perms["devices.release"])
 
 
 def get_user_permissions(user) -> set[str]:

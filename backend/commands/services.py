@@ -12,9 +12,23 @@ from commands.models import DeviceCommand
 def create_command(device, command_type, reason="", ttl=None, request=None):
     ttl = min(int(ttl or settings.DEFAULT_COMMAND_TTL), settings.MAX_COMMAND_TTL)
     now = timezone.now().replace(microsecond=0)
+    actor = None
+    if request is not None and getattr(request, "user", None) is not None:
+        if getattr(request.user, "is_authenticated", False) and hasattr(request.user, "pk"):
+            from django.contrib.auth import get_user_model
+            if isinstance(request.user, get_user_model()):
+                actor = request.user
+    try:
+        enroll_session = device.enrollment_session
+    except Exception:
+        enroll_session = None
     cmd = DeviceCommand(
         device=device, command_type=command_type, reason=reason[:200],
         issued_at=now, expires_at=now + timedelta(seconds=ttl), nonce=secrets.token_hex(16),
+        issued_by=actor,
+        enrollment_session=enroll_session,
+        retailer_id_snapshot=device.retailer_id,
+        vendor_id_snapshot=device.vendor_id,
     )
     cmd.signature = signing.sign_command(cmd)
     cmd.save()

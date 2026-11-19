@@ -86,9 +86,6 @@ class AkDeviceAdminReceiver : DeviceAdminReceiver() {
                 if (state.serverUrl.isBlank()) {
                     state.serverUrl = context.getString(R.string.default_server_url)
                 }
-                if (state.pendingEnrollmentKey.isBlank()) {
-                    state.pendingEnrollmentKey = context.getString(R.string.default_enrollment_key)
-                }
             }
             CommandPollService.start(context)
         }
