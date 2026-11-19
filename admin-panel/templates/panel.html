@@ -1,38 +1,110 @@
 <!doctype html>
-<html><head><meta charset="utf-8"><meta http-equiv="refresh" content="10">
-<title>AK DeviceLock Control Panel</title>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="refresh" content="6">
+<title>AK DeviceLock • Enterprise Command Center</title>
 <style>
-body{font-family:sans-serif;margin:24px;background:#f5f6f8}
-table{border-collapse:collapse;width:100%;background:#fff}
-th,td{border:1px solid #ddd;padding:8px;font-size:14px;text-align:left}
-th{background:#222;color:#fff}
-.on{color:#0a7d2c;font-weight:bold}.off{color:#b00020;font-weight:bold}
-button{padding:6px 10px;margin-right:4px;cursor:pointer}
-</style></head><body>
-<h2>AK DeviceLock</h2>
-<p><a href="{% url 'panel_qr' %}">Enrollment QR</a></p>
+:root{--bg:#070b14;--card:#111827;--border:#1f2937;--text:#f8fafc;--muted:#94a3b8;--blue:#2563eb;--green:#059669;--red:#dc2626;--amber:#d97706}
+*{box-sizing:border-box}
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:0;padding:24px;background:var(--bg);color:var(--text)}
+.topbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;background:#131c33;border:1px solid var(--blue);border-radius:14px;padding:16px 22px;margin-bottom:20px}
+.brand h1{margin:0;font-size:22px;display:flex;align-items:center;gap:8px}
+.brand p{margin:4px 0 0;color:var(--muted);font-size:13px}
+.navbtn{display:inline-block;background:var(--blue);color:#fff;text-decoration:none;padding:10px 16px;border-radius:10px;font-weight:600;font-size:14px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:20px}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 18px}
+.stat .lbl{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.05em}
+.stat .val{font-size:26px;font-weight:700;margin-top:4px}
+.table-wrap{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow-x:auto}
+table{border-collapse:collapse;width:100%}
+th,td{padding:12px 14px;font-size:13.5px;text-align:left;border-bottom:1px solid var(--border)}
+th{background:#0f172a;color:var(--muted);font-weight:600;text-transform:uppercase;font-size:11.5px;letter-spacing:.05em}
+.badge{display:inline-block;padding:4px 10px;border-radius:999px;font-size:11.5px;font-weight:700}
+.b-on{background:rgba(5,150,105,.2);color:#34d399;border:1px solid #059669}
+.b-off{background:rgba(220,38,38,.2);color:#f87171;border:1px solid #dc2626}
+.b-lock{background:rgba(220,38,38,.25);color:#fca5a5;border:1px solid #ef4444}
+.b-unlock{background:rgba(5,150,105,.2);color:#6ee7b7;border:1px solid #10b981}
+.b-enroll{background:rgba(37,99,235,.2);color:#93c5fd;border:1px solid #3b82f6}
+.btn{border:0;padding:7px 12px;border-radius:8px;font-weight:600;font-size:12.5px;cursor:pointer;color:#fff;margin-right:4px}
+.btn-lock{background:var(--red)}.btn-unlock{background:var(--green)}.btn-sync{background:#334155}.btn-rel{background:#6b7280}
+.footer{color:var(--muted);font-size:12.5px;margin-top:14px}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand">
+    <h1>🛡️ AK DeviceLock Command Center</h1>
+    <p>Authenticated Enterprise DPC • Auto-refreshes every 6s</p>
+  </div>
+  <div>
+    <a class="navbtn" href="{% url 'panel_qr' %}">+ Enroll New Device (QR Setup)</a>
+  </div>
+</div>
+
+<div class="stats">
+  <div class="stat"><div class="lbl">Total Registered</div><div class="val">{{ total_count }}</div></div>
+  <div class="stat"><div class="lbl">Online Now</div><div class="val" style="color:#34d399">{{ online_count }}</div></div>
+  <div class="stat"><div class="lbl">Locked Devices</div><div class="val" style="color:#f87171">{{ locked_count }}</div></div>
+  <div class="stat"><div class="lbl">Unlocked Devices</div><div class="val" style="color:#60a5fa">{{ unlocked_count }}</div></div>
+</div>
+
+<div class="table-wrap">
 <table>
-<tr><th>Device</th><th>Model</th><th>Android</th><th>Connection</th><th>Enrollment</th>
-<th>Restriction (device-reported)</th><th>Last sync</th><th>Last command</th><th>Actions</th></tr>
+<tr>
+  <th>Device ID</th>
+  <th>Device Model</th>
+  <th>Android</th>
+  <th>Connection</th>
+  <th>Enrollment</th>
+  <th>Restriction Status</th>
+  <th>Last Sync</th>
+  <th>Last Command</th>
+  <th>Remote Actions</th>
+</tr>
 {% for r in rows %}
 <tr>
-<td>{{ r.device.device_identifier }}</td>
-<td>{{ r.device.manufacturer }} {{ r.device.model }}</td>
-<td>{{ r.device.android_version }}</td>
-<td class="{% if r.online %}on{% else %}off{% endif %}">{% if r.online %}ONLINE{% else %}OFFLINE{% endif %}</td>
-<td>{{ r.device.enrollment_status }}</td>
-<td>{{ r.device.restriction_status }}</td>
-<td>{{ r.device.last_seen|default:"never" }}</td>
-<td>{% if r.last %}{{ r.last.command_type }}: <b>{{ r.last.command_status }}</b>{% if r.last.execution_result %} ({{ r.last.execution_result }}){% endif %}{% if r.last.command_status == "PENDING" and not r.online %} - device offline, waiting{% endif %}{% else %}-{% endif %}</td>
-<td>
-{% if r.device.enrollment_status == "ENROLLED" %}
-<form method="post" action="{% url 'panel_action' r.device.id 'lock' %}" style="display:inline" onsubmit="return confirm('LOCK this device?')">{% csrf_token %}<button>LOCK DEVICE</button></form>
-<form method="post" action="{% url 'panel_action' r.device.id 'unlock' %}" style="display:inline" onsubmit="return confirm('UNLOCK this device?')">{% csrf_token %}<button>UNLOCK DEVICE</button></form>
-<form method="post" action="{% url 'panel_action' r.device.id 'sync' %}" style="display:inline">{% csrf_token %}<button>SYNC DEVICE</button></form>
-{% endif %}
-</td></tr>
-{% empty %}<tr><td colspan="9">No devices registered.</td></tr>{% endfor %}
+  <td><code>{{ r.device.device_identifier| slice:":12" }}…</code></td>
+  <td><b>{{ r.device.manufacturer }} {{ r.device.model }}</b></td>
+  <td>Android {{ r.device.android_version }} (SDK {{ r.device.sdk_version }})</td>
+  <td>
+    {% if r.online %}
+      <span class="badge b-on">● ONLINE</span>
+    {% else %}
+      <span class="badge b-off">● OFFLINE</span>
+    {% endif %}
+  </td>
+  <td><span class="badge b-enroll">{{ r.device.enrollment_status }}</span></td>
+  <td>
+    {% if r.device.restriction_status == "LOCKED" %}
+      <span class="badge b-lock">🔒 LOCKED</span>
+    {% else %}
+      <span class="badge b-unlock">🔓 UNLOCKED</span>
+    {% endif %}
+  </td>
+  <td>{{ r.device.last_seen|default:"never" }}</td>
+  <td>
+    {% if r.last %}
+      <b>{{ r.last.command_type }}</b> → <code>{{ r.last.command_status }}</code>
+      {% if r.last.execution_result %}<br><small style="color:var(--muted)">{{ r.last.execution_result }}</small>{% endif %}
+      {% if r.last.command_status == "PENDING" and not r.online %}<br><small style="color:#fbbf24">Queued (waiting for device)</small>{% endif %}
+    {% else %}-{% endif %}
+  </td>
+  <td>
+    {% if r.device.enrollment_status == "ENROLLED" %}
+    <form method="post" action="{% url 'panel_action' r.device.id 'lock' %}" style="display:inline" onsubmit="return confirm('LOCK this device now?')">{% csrf_token %}<button class="btn btn-lock">🔒 LOCK</button></form>
+    <form method="post" action="{% url 'panel_action' r.device.id 'unlock' %}" style="display:inline" onsubmit="return confirm('UNLOCK this device now?')">{% csrf_token %}<button class="btn btn-unlock">🔓 UNLOCK</button></form>
+    <form method="post" action="{% url 'panel_action' r.device.id 'sync' %}" style="display:inline">{% csrf_token %}<button class="btn btn-sync">🔄 SYNC</button></form>
+    <form method="post" action="{% url 'panel_action' r.device.id 'release' %}" style="display:inline" onsubmit="return confirm('PERMANENTLY RELEASE Device Owner and re-enable Factory Reset on this phone?')">{% csrf_token %}<button class="btn btn-rel">RELEASE</button></form>
+    {% endif %}
+  </td>
+</tr>
+{% empty %}
+<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:28px">No devices registered yet. Click <b>+ Enroll New Device (QR Setup)</b> above to enroll a phone.</td></tr>
+{% endfor %}
 </table>
-<p>Lock/unlock state changes only after the device reports successful execution.</p>
-</body></html>
-
+</div>
+<p class="footer">Security guarantee: Lock/Unlock status changes only after the device verifies the ECDSA P-256 signature and reports execution.</p>
+</body>
+</html>

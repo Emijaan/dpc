@@ -1,5 +1,8 @@
 <resources>
     <!-- Public key only (safe to ship). Generate with: python manage.py init_signing_key -->
     <string name="command_public_key" translatable="false">MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEUluJufTzaeizGc7byhAlhPJSfkJIy24bSzFOS9itJDftl/8fhkWXILU3fRZn6gIBJCCnqfSVM8X8A8Zz+ce2GQ==</string>
+    <string name="default_server_url" translatable="false">https://dpc.apinfotechandcybersolution.com</string>
+    <string name="default_enrollment_key" translatable="false">akdl-prod-enroll-2026</string>
+    <string name="support_name" translatable="false">AK DeviceLock Support</string>
+    <string name="support_phone" translatable="false">+91-9999999999</string>
 </resources>
-

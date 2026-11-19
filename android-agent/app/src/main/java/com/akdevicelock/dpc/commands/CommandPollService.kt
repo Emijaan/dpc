@@ -8,17 +8,21 @@ import android.content.Context
 import android.content.Intent
 import android.net.ConnectivityManager
 import android.os.IBinder
+import com.akdevicelock.dpc.R
+import com.akdevicelock.dpc.deviceadmin.AkDeviceAdminReceiver
 import com.akdevicelock.dpc.enrollment.Enrollment
+import com.akdevicelock.dpc.lock.EnrollmentProtection
 import com.akdevicelock.dpc.lock.KioskRestrictionManager
 import com.akdevicelock.dpc.networking.ApiClient
 import com.akdevicelock.dpc.security.SecureStore
 
 /**
- * Polls the authenticated backend for commands. An FCM push (later) would only trigger this same
- * fetch; commands are never trusted from a notification.
+ * Polls the authenticated backend for commands every 4 seconds (and on instant sync triggers).
+ * Auto-registers when the device becomes Device Owner (via QR or Test DPC ownership transfer).
  */
 class CommandPollService : Service() {
     @Volatile private var running = false
+    @Volatile private var pollThread: Thread? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -27,18 +31,21 @@ class CommandPollService : Service() {
         nm.createNotificationChannel(NotificationChannel("akdl", "AK DeviceLock", NotificationManager.IMPORTANCE_MIN))
         startForeground(1, Notification.Builder(this, "akdl")
             .setContentTitle("AK DeviceLock")
-            .setContentText("Device management active")
+            .setContentText("Enterprise device protection active")
             .setSmallIcon(android.R.drawable.ic_lock_idle_lock)
             .build())
         if (!running) {
             running = true
-            Thread({ loop() }, "akdl-poll").start()
+            pollThread = Thread({ loop() }, "akdl-poll").also { it.start() }
+        } else if (intent?.getBooleanExtra(EXTRA_FORCE_SYNC, false) == true) {
+            pollThread?.interrupt()
         }
         return START_STICKY
     }
 
     override fun onDestroy() { running = false }
 
+    @Suppress("DEPRECATION")
     private fun online(): Boolean {
         val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         return cm.activeNetworkInfo?.isConnected == true
@@ -47,13 +54,19 @@ class CommandPollService : Service() {
     private fun loop() {
         var backoff = POLL_MS
         while (running) {
+            EnrollmentProtection.enforce(this)
             val state = AppState(this)
-            if (!state.isRegistered && state.pendingEnrollmentKey.isNotEmpty() && state.serverUrl.isNotEmpty()) {
-                // QR provisioning delivered the server details; register automatically (retried each cycle).
-                if (online()) {
-                    val err = Enrollment.register(this, state.serverUrl, state.pendingEnrollmentKey)
-                    state.connection = if (err == null) "registered" else "registration pending: $err"
-                } else state.connection = "offline (waiting to register)"
+            if (!state.isRegistered && AkDeviceAdminReceiver.isDeviceOwner(this)) {
+                val url = state.serverUrl.ifBlank { getString(R.string.default_server_url) }
+                val key = state.pendingEnrollmentKey.ifBlank { getString(R.string.default_enrollment_key) }
+                if (url.isNotEmpty() && key.isNotEmpty()) {
+                    if (online()) {
+                        val err = Enrollment.register(this, url, key)
+                        state.connection = if (err == null) "online" else "registration pending: $err"
+                    } else {
+                        state.connection = "offline (waiting to register)"
+                    }
+                }
             }
             if (state.isRegistered) {
                 if (!online()) {
@@ -66,7 +79,7 @@ class CommandPollService : Service() {
                     }
                 }
             }
-            try { Thread.sleep(backoff) } catch (_: InterruptedException) {}
+            try { Thread.sleep(backoff) } catch (_: InterruptedException) { backoff = POLL_MS }
         }
     }
 
@@ -92,12 +105,18 @@ class CommandPollService : Service() {
     }
 
     companion object {
-        private const val POLL_MS = 15_000L
-        private const val MAX_BACKOFF_MS = 300_000L
+        private const val POLL_MS = 4_000L
+        private const val MAX_BACKOFF_MS = 30_000L
+        private const val EXTRA_FORCE_SYNC = "force_sync"
 
         fun start(context: Context) {
             context.startForegroundService(Intent(context, CommandPollService::class.java))
         }
+
+        fun syncNow(context: Context) {
+            context.startForegroundService(
+                Intent(context, CommandPollService::class.java).putExtra(EXTRA_FORCE_SYNC, true)
+            )
+        }
     }
 }
-

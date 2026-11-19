@@ -1,21 +1,71 @@
 <!doctype html>
-<html><head><meta charset="utf-8"><title>AK DeviceLock - Enrollment QR</title>
-<style>body{font-family:sans-serif;margin:24px;background:#f5f6f8}.box{background:#fff;display:inline-block;padding:16px;border:1px solid #ddd}</style></head>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AK DeviceLock • Device Enrollment & QR Setup</title>
+<style>
+:root{--bg:#070b14;--card:#111827;--border:#1f2937;--text:#f8fafc;--muted:#94a3b8;--blue:#2563eb}
+*{box-sizing:border-box}
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:0;padding:24px;background:var(--bg);color:var(--text)}
+.topbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;background:#131c33;border:1px solid var(--blue);border-radius:14px;padding:16px 22px;margin-bottom:20px}
+.topbar h1{margin:0;font-size:21px}
+.backbtn{display:inline-block;background:#334155;color:#fff;text-decoration:none;padding:9px 15px;border-radius:9px;font-weight:600;font-size:13.5px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:18px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px}
+.card h2{margin:0 0 8px;font-size:17px;color:#60a5fa}
+.card p,.card li{color:#cbd5e1;font-size:13.5px;line-height:1.55}
+.qrbox{background:#fff;display:inline-block;padding:12px;border-radius:12px;margin:10px 0}
+code{background:#1e293b;color:#93c5fd;padding:3px 7px;border-radius:6px;font-size:12.5px;word-break:break-all}
+.tag{display:inline-block;background:#1e3a8a;color:#bfdbfe;font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;margin-bottom:8px}
+</style>
+</head>
 <body>
-<h2>Enroll a device (QR Provisioning)</h2>
-<ol>
-<li>Factory-reset the phone. On the first (welcome) screen tap the same spot 6 times.</li>
-<li>Connect to Wi-Fi when asked, then scan this QR code.</li>
-<li>The phone downloads AK DeviceLock, becomes Device Owner and registers itself automatically.</li>
-</ol>
-<div class="box">{{ svg|safe }}</div>
-<p>Server URL embedded in QR: <code>{{ base_url }}</code><br>
-APK URL: <a href="{{ apk_url }}">{{ apk_url }}</a></p>
-<p>Switch QR Server URL:
-<a href="?base_url=https://dpc.apinfotechandcybersolution.com">https://dpc.apinfotechandcybersolution.com</a> |
-<a href="?base_url=http://dpc.apinfotechandcybersolution.com">http://dpc.apinfotechandcybersolution.com</a> |
-<a href="?base_url=http://3.106.214.246">http://3.106.214.246</a>
-</p>
-<p><b>Keep this page private:</b> the code contains the enrollment key.</p>
-<p><a href="{% url 'panel' %}">Back to panel</a></p>
-</body></html>
+<div class="topbar">
+  <div>
+    <h1>🛡️ AK DeviceLock • Device Owner Enrollment</h1>
+    <div style="color:var(--muted);font-size:13px;margin-top:4px">Server: <code>{{ base_url }}</code> • APK: <a style="color:#60a5fa" href="{{ apk_url }}">{{ apk_url }}</a></div>
+  </div>
+  <a class="backbtn" href="{% url 'panel' %}">← Back to Command Center</a>
+</div>
+
+<div class="grid">
+  <!-- METHOD A: 2-STEP PLAY PROTECT BYPASS (LIKE RUDRAUM VIDEO, FOR ANDROID 13/14/15+) -->
+  <div class="card">
+    <span class="tag">METHOD A • RECOMMENDED FOR ANDROID 12 / 13 / 14 / 15+ (OPPO, VIVO, SAMSUNG, XIAOMI)</span>
+    <h2>Step 1: Scan Google Test DPC Setup QR (Welcome Screen)</h2>
+    <ol>
+      <li>Factory-reset the customer phone. On the <b>"Hello / Welcome"</b> screen, tap the same spot <b>6–7 times</b>.</li>
+      <li>Scan this <b>Step 1 QR Code</b> and connect to Wi-Fi.</li>
+      <li>When asked <i>"How will you use this phone?"</i>, select <b>USE FOR WORK ONLY</b> (never select Work & Personal).</li>
+      <li>Once on the home screen, open <b>Google Play Store → Play Protect → Settings</b> and turn <b>OFF</b> <i>Scan apps with Play Protect</i>.</li>
+    </ol>
+    <div class="qrbox">{{ testdpc_svg|safe }}</div>
+  </div>
+
+  <div class="card">
+    <span class="tag">METHOD A • STEP 2 & 3</span>
+    <h2>Step 2: Install AK DeviceLock & Transfer Ownership</h2>
+    <ol>
+      <li>Open <b>Chrome → Google Lens</b> camera icon on the customer phone and scan this <b>Step 2 QR Code</b> to download & install <b>AK DeviceLock</b> (<code>akdevicelock.apk</code>).</li>
+      <li>Open the <b>Test DPC</b> app → search <b><code>transfer</code></b> → tap <b>"Transfer ownership to component"</b>.</li>
+      <li>Select:<br><code>{{ admin_component }}</code><br>and tap <b>TRANSFER</b>.</li>
+      <li><b>AK DeviceLock</b> opens automatically as <b>Device Owner</b>, blocks Factory Reset, and registers with the server automatically!</li>
+    </ol>
+    <div class="qrbox">{{ apk_url_svg|safe }}</div>
+  </div>
+
+  <!-- METHOD B: DIRECT 1-STEP QR (FOR ANDROID 9 / 10 / 11) -->
+  <div class="card">
+    <span class="tag">METHOD B • DIRECT 1-STEP PROVISIONING (ANDROID 9 / 10 / 11)</span>
+    <h2>Direct Single-QR Provisioning</h2>
+    <ol>
+      <li>Factory-reset the phone and tap the <b>Welcome</b> screen <b>6 times</b>.</li>
+      <li>Connect to Wi-Fi and scan this QR code to install <b>AK DeviceLock</b> directly as Device Owner in a single step.</li>
+    </ol>
+    <div class="qrbox">{{ svg|safe }}</div>
+    <p style="font-size:12px;color:var(--muted)">Keep this page private: the direct QR embeds the enrollment credential.</p>
+  </div>
+</div>
+</body>
+</html>
