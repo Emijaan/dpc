@@ -45,6 +45,10 @@ class AppState(context: Context) {
         get() = prefs.getString("last_command", "none") ?: "none"
         set(v) = prefs.edit().putString("last_command", v).apply()
 
+    var lastTokenRenewal: Long
+        get() = prefs.getLong("last_token_renewal", 0)
+        set(v) = prefs.edit().putLong("last_token_renewal", v).apply()
+
     fun nowServerSeconds() = System.currentTimeMillis() / 1000 + serverOffset
 
     // ---- replay protection: processed command ids -> result, and seen nonces ----

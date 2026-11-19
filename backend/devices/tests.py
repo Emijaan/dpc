@@ -148,3 +148,16 @@ class ApiFlowTests(TestCase):
             resp = self.client.get("/panel/qr/")
             self.assertEqual(resp.status_code, 200)
             self.assertIn(b"<svg", resp.content)
+
+    def test_api_docs_endpoint(self):
+        resp = self.client.get("/api/v1/docs/")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        paths = {e["path"] for e in data["endpoints"]}
+        self.assertIn("/api/v1/devices/register/", paths)
+        self.assertIn("/api/v1/commands/pending/", paths)
+
+    def test_fcm_noop_when_unconfigured(self):
+        from notifications.services import notify_commands_available
+        dev = Device.objects.get(pk=self.device_id)
+        self.assertFalse(notify_commands_available(dev))

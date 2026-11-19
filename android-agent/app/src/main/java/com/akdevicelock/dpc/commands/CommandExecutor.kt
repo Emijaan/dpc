@@ -1,18 +1,21 @@
 package com.akdevicelock.dpc.commands
 
-import android.app.admin.DevicePolicyManager
 import android.content.Context
+import android.os.Build
+import com.akdevicelock.dpc.BuildConfig
+import com.akdevicelock.dpc.deviceadmin.AkDeviceAdminReceiver
 import com.akdevicelock.dpc.lock.EnrollmentProtection
 import com.akdevicelock.dpc.lock.KioskRestrictionManager
 import com.akdevicelock.dpc.lock.LockResult
 import com.akdevicelock.dpc.networking.ApiClient
 import com.akdevicelock.dpc.security.CommandVerifier
-import com.akdevicelock.dpc.security.SecureStore
+import com.akdevicelock.dpc.unlock.RemoteUnlockEngine
 
 /** Validates, de-duplicates, executes and acknowledges commands. Never executes anything unverified. */
 class CommandExecutor(private val context: Context, private val api: ApiClient) {
     private val state = AppState(context)
     private val kiosk = KioskRestrictionManager(context)
+    private val unlockEngine = RemoteUnlockEngine(context)
 
     fun handle(c: Command) {
         // Replay / duplicate: never re-execute; just repeat the previous acknowledgment.
@@ -29,7 +32,7 @@ class CommandExecutor(private val context: Context, private val api: ApiClient) 
         }
         val (ok, result) = execute(c)
         val acked = finish(c, ok, result)
-        if (c.commandType == "DEVICE_RELEASE" && ok && acked) finalizeRelease()
+        if (c.commandType == "DEVICE_RELEASE" && ok && acked) unlockEngine.finalizeRelease()
     }
 
     /** Returns true if the server accepted the acknowledgment. */
@@ -45,24 +48,20 @@ class CommandExecutor(private val context: Context, private val api: ApiClient) 
 
     private fun execute(c: Command): Pair<Boolean, String> = when (c.commandType) {
         "DEVICE_LOCK" -> fromLock(kiosk.lock(), "kiosk restriction applied")
-        "DEVICE_UNLOCK" -> fromLock(kiosk.unlock(), "kiosk restriction removed")
-        "DEVICE_STATUS", "DEVICE_SYNC" -> true to "synced"
-        "DEVICE_RELEASE" -> fromLock(kiosk.unlock(), "released")
+        "DEVICE_UNLOCK" -> unlockEngine.unlock()
+        "DEVICE_STATUS" -> true to statusSummary()
+        "DEVICE_SYNC" -> true to "synced"
+        "DEVICE_RELEASE" -> unlockEngine.prepareRelease()
         else -> false to "unsupported"
     }
+
+    private fun statusSummary(): String =
+        "owner=${AkDeviceAdminReceiver.isDeviceOwner(context)},locked=${kiosk.isApplied()}," +
+            "reset_blocked=${EnrollmentProtection.isFactoryResetBlocked(context)}," +
+            "sdk=${Build.VERSION.SDK_INT},v=${BuildConfig.VERSION_NAME}"
 
     private fun fromLock(r: LockResult, okMsg: String): Pair<Boolean, String> = when (r) {
         is LockResult.Success -> true to okMsg
         is LockResult.Failure -> false to r.reason
-    }
-
-    /** Authorized release, after the server acknowledged: clear protections, forget credentials, give up Device Owner. */
-    private fun finalizeRelease() {
-        EnrollmentProtection.releaseAll(context)
-        val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
-        SecureStore(context).clear()
-        state.reset()
-        @Suppress("DEPRECATION")
-        dpm.clearDeviceOwnerApp(context.packageName)
     }
 }

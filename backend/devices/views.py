@@ -13,6 +13,7 @@ from commands.models import DeviceCommand
 from commands.services import create_command, expire_stale
 from devices.auth import DeviceTokenAuthentication, IsDevice
 from devices.models import Device
+from notifications.services import notify_commands_available
 
 
 class DeviceInfoSerializer(serializers.Serializer):
@@ -137,8 +138,10 @@ class OperatorCommandView(OperatorBase):
                              "duplicate": True})
         cmd = create_command(device, self.command_type, request.data.get("reason", ""),
                              request.data.get("ttl_seconds"))
+        fcm_sent = notify_commands_available(device)
         return Response({"command_id": str(cmd.id), "status": cmd.command_status,
-                         "device_online": device.is_online}, status=status.HTTP_201_CREATED)
+                         "device_online": device.is_online, "fcm_notified": fcm_sent},
+                        status=status.HTTP_201_CREATED)
 
 
 class LockView(OperatorCommandView):

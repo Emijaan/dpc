@@ -10,6 +10,7 @@ from django.views.decorators.http import require_POST, require_safe
 from commands.models import DeviceCommand
 from commands.services import create_command, expire_stale
 from devices.models import Device
+from notifications.services import notify_commands_available
 
 ACTIONS = {
     "lock": DeviceCommand.Type.LOCK,
@@ -61,6 +62,7 @@ def panel_action(request, device_id, action):
         ).exists()
         if not busy:
             create_command(device, ctype, "operator panel")
+            notify_commands_available(device)
     return redirect("panel")
 
 

@@ -14,8 +14,11 @@ android {
         applicationId = "com.akdevicelock.dpc"
         minSdk = 28 // Vivo 1902 (Android 9) through Samsung Android 16
         targetSdk = 35
-        versionCode = 7
-        versionName = "0.7.0"
+        versionCode = 8
+        versionName = "0.8.0"
+    }
+    testOptions {
+        unitTests.isReturnDefaultValues = true
     }
     signingConfigs {
         if (ksPath != null) {
@@ -42,4 +45,9 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
+}
+
+dependencies {
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20240303")
 }

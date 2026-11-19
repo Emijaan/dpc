@@ -1,36 +1,30 @@
 # AK DeviceLock Testing Report
 
-## 1. Real Hardware Testing — vivo 1902 (Android 9, SDK 28)
+## 1. Real Hardware Testing
+
+### Device A: vivo 1902 (Android 9, SDK 28)
 Date: 2026-11-19
 
 | Test | Result | Notes |
 |---|---|---|
 | App builds (`assembleDebug` & signed `assembleRelease`, minSdk 28) | PASS | Verified signature with `apksigner verify --print-certs`. |
-| Device Owner provisioning (`dpm set-device-owner`) | PASS | 0 accounts, 1 user. Confirmed in `dumpsys device_policy`. |
+| Device Owner provisioning (`dpm set-device-owner` & 2-step transfer) | PASS | Confirmed in `dumpsys device_policy`. |
 | `lockNow()` via `DevicePolicyLockManager` | PASS | Screen turned off and locked. User unlocked with their own pattern. |
-| Reboot behavior (Device Owner persistence) | PASS | Device Owner persisted after reboot (`dumpsys device_policy`). |
-| Kiosk restriction (Lock Task Mode, `KioskRestrictionManager`) | PASS | `dumpsys`: `mLockTaskModeState=LOCKED`. Home/Back/Recents disabled (user confirmed). |
-| Emergency dialer in kiosk | PASS | Emergency call button opens dialer; returning to AK DeviceLock works. |
-| Kiosk reboot persistence (`BootReceiver`) | PASS | After reboot, `BootReceiver` re-launched `MainActivity` into lock task mode. |
-| Kiosk release (debug long-press) | PASS | `dumpsys`: `mLockTaskModeState=NONE`, `kiosk_applied=false`. Phone fully usable. |
-| Device registration & Keystore token storage | PASS | Vivo 1902 registered against backend (`/api/v1/devices/register/`), status `ENROLLED` & `ONLINE`. |
-| Remote LOCK & UNLOCK via Control Panel | PASS | Operator triggered LOCK & UNLOCK from `/panel/`; device verified ECDSA signature, applied/removed kiosk restriction, and acknowledged execution. |
+| Kiosk restriction (Lock Task Mode, `KioskRestrictionManager`) | PASS | `dumpsys`: `mLockTaskModeState=LOCKED`. Home/Back/Recents disabled. |
+| Emergency dialer in kiosk | PASS | Emergency call button opens dialer. |
+| Reboot persistence (`BootReceiver`) | PASS | Device Owner & kiosk restriction persisted across reboot. |
+| Remote LOCK & UNLOCK via Control Panel | PASS | Operator triggered LOCK & UNLOCK from `/panel/`; device verified ECDSA signature and acknowledged. |
 
-## 2. Automated Backend Security & Protocol Tests (`python manage.py test` — 14/14 PASS)
+### Device B: Samsung SM-X115 (Android 16, SDK 36)
+Date: 2026-11-19
 
-| Test Case | Result | Verified Behavior |
+| Test | Result | Notes |
 |---|---|---|
-| `test_register_requires_enrollment_key` | PASS | Unauthenticated registration without valid `X-Enrollment-Key` rejected (`403`). |
-| `test_duplicate_registration_rejected` | PASS | Re-registering an existing `device_identifier` rejected (`409`). |
-| `test_device_endpoints_need_credential` | PASS | Missing or invalid device token rejected (`401`/`403`). |
-| `test_device_cannot_use_operator_endpoints` | PASS | Device credential cannot call operator lock/unlock endpoints (`403`). |
-| `test_lock_flow_signature_and_ack` | PASS | ECDSA P-256 signature verifies over canonical payload; `restriction_status` updates to `LOCKED` only after device acknowledges `success=True`; duplicate ack is idempotent. |
-| `test_duplicate_lock_command_not_created` | PASS | Creating a second pending lock command returns existing command (`duplicate=True`). |
-| `test_expired_command_not_delivered` | PASS | Commands past `expires_at` transition to `EXPIRED` and are not delivered. |
-| `test_offline_command_waits_then_delivered` | PASS | Commands created while device is offline remain `PENDING` and deliver upon reconnect. |
-| `test_other_device_cannot_ack` | PASS | A device cannot acknowledge commands belonging to another device (`404`). |
-| `test_release_revokes_device` | PASS | `DEVICE_RELEASE` marks device `RELEASED` and revokes future token authentication (`401`). |
-| `test_renew_token_invalidates_old` | PASS | Credential rotation invalidates previous token and activates new token. |
-| `test_panel_requires_staff` | PASS | Unauthenticated requests to `/panel/` redirect to login (`302`). |
-| `test_audit_trail` | PASS | All registration, creation, delivery, and ack events are recorded in `DeviceAuditLog`. |
-| `test_qr_provisioning_payload_and_page` | PASS | `/panel/qr/` generates valid Android Enterprise QR payload with `PROVISIONING_DEVICE_ADMIN_SIGNATURE_CHECKSUM` and renders inline SVG QR. |
+| Device Owner provisioning (`v0.7.0`, `targetSdk 35`) | PASS | `dpm list-owners`: `com.akdevicelock.dpc/.deviceadmin.AkDeviceAdminReceiver,DeviceOwner,Affiliated` (with Auto Blocker OFF). |
+| Device registration & telemetry | PASS | Production PostgreSQL DB recorded `samsung SM-X115 \| Android 16 \| SDK 36 \| v0.7.0 \| ENROLLED`. |
+| Anti-reset & anti-flashing policies (`EnrollmentProtection`) | PASS | `DevicePolicyManager` log confirmed `no_factory_reset`, `no_safe_boot`, `no_add_user`, `no_remove_user`, `no_physical_media`, `no_usb_file_transfer`, `no_network_reset = true`. |
+
+## 2. Automated Unit & Backend Tests
+
+- **Android JVM Unit Tests (`./gradlew testDebugUnitTest`)**: 5/5 PASS (`CommandVerifierTest`: valid signature, expired command, wrong device, unauthorized command type, tampered signature).
+- **Django Backend Tests (`python manage.py test`)**: 16/16 PASS (registration key enforcement, duplicate registration rejection, token auth, role separation, ECDSA signature & ack flow, duplicate command prevention, expiry, offline queue & reconnect delivery, cross-device isolation, release revocation, token renewal, panel staff auth, audit trail, QR payload & SVG, `/api/v1/docs/`, FCM no-op guard).

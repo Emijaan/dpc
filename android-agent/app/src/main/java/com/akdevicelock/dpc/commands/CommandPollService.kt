@@ -8,6 +8,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.IBinder
 import com.akdevicelock.dpc.R
@@ -19,14 +21,20 @@ import com.akdevicelock.dpc.networking.ApiClient
 import com.akdevicelock.dpc.security.SecureStore
 
 /**
- * Polls the authenticated backend for commands every 4 seconds (and on instant sync triggers).
- * Auto-registers when the device becomes Device Owner (via QR or Test DPC ownership transfer).
+ * Polls the authenticated backend for commands every 4 seconds (and immediately on network
+ * restoration or sync triggers). Periodically renews the device-specific credential.
  */
 class CommandPollService : Service() {
     @Volatile private var running = false
     @Volatile private var pollThread: Thread? = null
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onCreate() {
+        super.onCreate()
+        registerConnectivityWatcher()
+    }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val nm = getSystemService(NotificationManager::class.java)
@@ -50,12 +58,33 @@ class CommandPollService : Service() {
         return START_STICKY
     }
 
-    override fun onDestroy() { running = false }
+    override fun onDestroy() {
+        running = false
+        networkCallback?.let {
+            try {
+                (getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager).unregisterNetworkCallback(it)
+            } catch (_: Exception) {}
+        }
+    }
 
-    @Suppress("DEPRECATION")
+    private fun registerConnectivityWatcher() {
+        val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val cb = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                pollThread?.interrupt()
+            }
+        }
+        try {
+            cm.registerDefaultNetworkCallback(cb)
+            networkCallback = cb
+        } catch (_: Exception) {}
+    }
+
     private fun online(): Boolean {
         val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        return cm.activeNetworkInfo?.isConnected == true
+        val net = cm.activeNetwork ?: return false
+        val caps = cm.getNetworkCapabilities(net) ?: return false
+        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 
     private fun loop() {
@@ -91,8 +120,9 @@ class CommandPollService : Service() {
     }
 
     private fun cycle(state: AppState) {
-        val token = SecureStore(this).getToken() ?: run { state.connection = "no credential"; return }
-        val api = ApiClient(state.serverUrl, token)
+        val store = SecureStore(this)
+        val token = store.getToken() ?: run { state.connection = "no credential"; return }
+        var api = ApiClient(state.serverUrl, token)
         val pending = api.pending()
         if (pending.code == 401) { state.connection = "credential rejected"; return }
         val body = pending.body ?: throw IllegalStateException("bad response")
@@ -103,17 +133,30 @@ class CommandPollService : Service() {
             Command.parse(cmds.getJSONObject(i))?.let { executor.handle(it) }
             if (!state.isRegistered) return // released
         }
+        val now = System.currentTimeMillis()
+        if (state.lastTokenRenewal == 0L) {
+            state.lastTokenRenewal = now
+        } else if (now - state.lastTokenRenewal > TOKEN_RENEW_MS) {
+            val renewed = api.renewToken()
+            val newTok = renewed.body?.optString("device_token", "").orEmpty()
+            if (renewed.code in 200..299 && newTok.isNotEmpty()) {
+                store.putToken(newTok)
+                state.lastTokenRenewal = now
+                api = ApiClient(state.serverUrl, newTok)
+            }
+        }
         val sync = Enrollment.deviceInfo(this, state)
             .put("restriction_status", if (KioskRestrictionManager(this).isApplied()) "LOCKED" else "NONE")
         sync.remove("device_identifier")
         api.sync(sync)
-        state.lastSync = System.currentTimeMillis()
+        state.lastSync = now
         state.connection = "online"
     }
 
     companion object {
         private const val POLL_MS = 4_000L
         private const val MAX_BACKOFF_MS = 30_000L
+        private const val TOKEN_RENEW_MS = 7L * 24 * 3600 * 1000L
         private const val EXTRA_FORCE_SYNC = "force_sync"
 
         fun start(context: Context) {

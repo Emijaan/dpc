@@ -38,6 +38,7 @@ class ApiClient(private val baseUrl: String, private val token: String? = null) 
 
     fun sync(info: JSONObject) = request("POST", "/api/v1/devices/sync/", info)
     fun pending() = request("GET", "/api/v1/commands/pending/")
+    fun renewToken() = request("POST", "/api/v1/devices/renew-token/", JSONObject())
     fun acknowledge(commandId: String, success: Boolean, result: String) =
         request("POST", "/api/v1/commands/acknowledge/",
             JSONObject().put("command_id", commandId).put("success", success).put("result", result.take(280)))
