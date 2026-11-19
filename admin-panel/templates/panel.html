@@ -1,0 +1,37 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta http-equiv="refresh" content="10">
+<title>AK DeviceLock Control Panel</title>
+<style>
+body{font-family:sans-serif;margin:24px;background:#f5f6f8}
+table{border-collapse:collapse;width:100%;background:#fff}
+th,td{border:1px solid #ddd;padding:8px;font-size:14px;text-align:left}
+th{background:#222;color:#fff}
+.on{color:#0a7d2c;font-weight:bold}.off{color:#b00020;font-weight:bold}
+button{padding:6px 10px;margin-right:4px;cursor:pointer}
+</style></head><body>
+<h2>AK DeviceLock</h2>
+<table>
+<tr><th>Device</th><th>Model</th><th>Android</th><th>Connection</th><th>Enrollment</th>
+<th>Restriction (device-reported)</th><th>Last sync</th><th>Last command</th><th>Actions</th></tr>
+{% for r in rows %}
+<tr>
+<td>{{ r.device.device_identifier }}</td>
+<td>{{ r.device.manufacturer }} {{ r.device.model }}</td>
+<td>{{ r.device.android_version }}</td>
+<td class="{% if r.online %}on{% else %}off{% endif %}">{% if r.online %}ONLINE{% else %}OFFLINE{% endif %}</td>
+<td>{{ r.device.enrollment_status }}</td>
+<td>{{ r.device.restriction_status }}</td>
+<td>{{ r.device.last_seen|default:"never" }}</td>
+<td>{% if r.last %}{{ r.last.command_type }}: <b>{{ r.last.command_status }}</b>{% if r.last.execution_result %} ({{ r.last.execution_result }}){% endif %}{% if r.last.command_status == "PENDING" and not r.online %} - device offline, waiting{% endif %}{% else %}-{% endif %}</td>
+<td>
+{% if r.device.enrollment_status == "ENROLLED" %}
+<form method="post" action="{% url 'panel_action' r.device.id 'lock' %}" style="display:inline" onsubmit="return confirm('LOCK this device?')">{% csrf_token %}<button>LOCK DEVICE</button></form>
+<form method="post" action="{% url 'panel_action' r.device.id 'unlock' %}" style="display:inline" onsubmit="return confirm('UNLOCK this device?')">{% csrf_token %}<button>UNLOCK DEVICE</button></form>
+<form method="post" action="{% url 'panel_action' r.device.id 'sync' %}" style="display:inline">{% csrf_token %}<button>SYNC DEVICE</button></form>
+{% endif %}
+</td></tr>
+{% empty %}<tr><td colspan="9">No devices registered.</td></tr>{% endfor %}
+</table>
+<p>Lock/unlock state changes only after the device reports successful execution.</p>
+</body></html>
+
