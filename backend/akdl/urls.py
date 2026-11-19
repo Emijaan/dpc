@@ -1,9 +1,11 @@
 from django.contrib import admin
 from django.urls import include, path
+from django.views.generic import RedirectView
 
 from devices import panel
 
 urlpatterns = [
+    path("", RedirectView.as_view(pattern_name="panel", permanent=False)),
     path("admin/", admin.site.urls),
     path("panel/", panel.panel_home, name="panel"),
     path("panel/qr/", panel.panel_qr, name="panel_qr"),
