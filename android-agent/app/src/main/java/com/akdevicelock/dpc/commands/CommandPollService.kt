@@ -6,7 +6,9 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.net.ConnectivityManager
+import android.os.Build
 import android.os.IBinder
 import com.akdevicelock.dpc.R
 import com.akdevicelock.dpc.deviceadmin.AkDeviceAdminReceiver
@@ -29,11 +31,16 @@ class CommandPollService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val nm = getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(NotificationChannel("akdl", "AK DeviceLock", NotificationManager.IMPORTANCE_MIN))
-        startForeground(1, Notification.Builder(this, "akdl")
+        val notif = Notification.Builder(this, "akdl")
             .setContentTitle("AK DeviceLock")
             .setContentText("Enterprise device protection active")
             .setSmallIcon(android.R.drawable.ic_lock_idle_lock)
-            .build())
+            .build()
+        if (Build.VERSION.SDK_INT >= 34) {
+            startForeground(1, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+        } else {
+            startForeground(1, notif)
+        }
         if (!running) {
             running = true
             pollThread = Thread({ loop() }, "akdl-poll").also { it.start() }
@@ -110,13 +117,17 @@ class CommandPollService : Service() {
         private const val EXTRA_FORCE_SYNC = "force_sync"
 
         fun start(context: Context) {
-            context.startForegroundService(Intent(context, CommandPollService::class.java))
+            try {
+                context.startForegroundService(Intent(context, CommandPollService::class.java))
+            } catch (_: Exception) {}
         }
 
         fun syncNow(context: Context) {
-            context.startForegroundService(
-                Intent(context, CommandPollService::class.java).putExtra(EXTRA_FORCE_SYNC, true)
-            )
+            try {
+                context.startForegroundService(
+                    Intent(context, CommandPollService::class.java).putExtra(EXTRA_FORCE_SYNC, true)
+                )
+            } catch (_: Exception) {}
         }
     }
 }
