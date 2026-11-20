@@ -246,13 +246,14 @@ export function TenantsPage({ mode }: { mode: "retailers" | "vendors" }) {
               {mode === "vendors" && <th className="p-3">Retailer</th>}
               <th className="p-3">Contact</th>
               <th className="p-3">Entitlements</th>
+              <th className="p-3">Last IP &amp; Device</th>
               <th className="p-3">Status</th>
               <th className="p-3">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {rows.length === 0 ? (
-              <tr><td colSpan={7} className="p-6 text-center text-slate-500">No records found.</td></tr>
+              <tr><td colSpan={8} className="p-6 text-center text-slate-500">No records found.</td></tr>
             ) : (
               rows.map((r) => (
                 <tr key={r.id}>
@@ -261,6 +262,10 @@ export function TenantsPage({ mode }: { mode: "retailers" | "vendors" }) {
                   {mode === "vendors" && <td className="p-3">{(r as VendorItem).retailer_business_name}</td>}
                   <td className="p-3">{r.contact_person} · {r.mobile}</td>
                   <td className="p-3">{r.entitlements_consumed} / {r.entitlement_quota ?? "Unlimited"}</td>
+                  <td className="p-3">
+                    <div><code>{r.last_ip || "-"}</code></div>
+                    <div className="text-slate-500">{r.last_device || "-"}</div>
+                  </td>
                   <td className="p-3"><StatusBadge label={r.status} /></td>
                   <td className="p-3 flex flex-wrap gap-1.5">
                     <button

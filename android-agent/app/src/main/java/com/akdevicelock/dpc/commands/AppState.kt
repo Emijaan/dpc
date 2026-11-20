@@ -45,6 +45,43 @@ class AppState(context: Context) {
         get() = prefs.getString("last_command", "none") ?: "none"
         set(v) = prefs.edit().putString("last_command", v).apply()
 
+    var emiAmount: String
+        get() = prefs.getString("emi_amount", "") ?: ""
+        set(v) = prefs.edit().putString("emi_amount", v).apply()
+
+    var emiDueDate: String
+        get() = prefs.getString("emi_due_date", "") ?: ""
+        set(v) = prefs.edit().putString("emi_due_date", v).apply()
+
+    var pendingEmiCount: String
+        get() = prefs.getString("pending_emi_count", "") ?: ""
+        set(v) = prefs.edit().putString("pending_emi_count", v).apply()
+
+    var dealerName: String
+        get() = prefs.getString("dealer_name", "") ?: ""
+        set(v) = prefs.edit().putString("dealer_name", v).apply()
+
+    var dealerMobile: String
+        get() = prefs.getString("dealer_mobile", "") ?: ""
+        set(v) = prefs.edit().putString("dealer_mobile", v).apply()
+
+    var dealerCompany: String
+        get() = prefs.getString("dealer_company", "") ?: ""
+        set(v) = prefs.edit().putString("dealer_company", v).apply()
+
+    fun updateLockScreenInfo(obj: JSONObject?) {
+        if (obj == null) return
+        fun clean(key: String) = if (obj.isNull(key)) "" else obj.optString(key, "").trim()
+        prefs.edit()
+            .putString("emi_amount", clean("emi_amount"))
+            .putString("emi_due_date", clean("emi_due_date"))
+            .putString("pending_emi_count", clean("pending_emi_count"))
+            .putString("dealer_name", clean("dealer_name"))
+            .putString("dealer_mobile", clean("dealer_mobile"))
+            .putString("dealer_company", clean("dealer_company"))
+            .apply()
+    }
+
     var lastTokenRenewal: Long
         get() = prefs.getLong("last_token_renewal", 0)
         set(v) = prefs.edit().putLong("last_token_renewal", v).apply()

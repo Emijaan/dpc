@@ -29,6 +29,10 @@ class AccountProfile(models.Model):
     )
     entitlement_quota = models.PositiveIntegerField(null=True, blank=True)
     entitlements_consumed = models.PositiveIntegerField(default=0)
+    last_ip = models.GenericIPAddressField(null=True, blank=True)
+    last_device = models.CharField(max_length=128, blank=True, default="")
+    last_user_agent = models.CharField(max_length=255, blank=True, default="")
+    last_active_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -31,8 +31,11 @@ class PendingView(DeviceBase):
                 c.command_status = DeviceCommand.Status.DELIVERED
                 c.save(update_fields=["command_status"])
                 log_event(device, "COMMAND_DELIVERED", c.command_type, c)
-        return Response({"server_time": int(timezone.now().timestamp()),
-                         "commands": [command_payload(c) for c in cmds]})
+        return Response({
+            "server_time": int(timezone.now().timestamp()),
+            "commands": [command_payload(c) for c in cmds],
+            "lock_screen": device.lock_screen_info(),
+        })
 
 
 class AckSerializer(serializers.Serializer):

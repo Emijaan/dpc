@@ -135,6 +135,7 @@ class CommandPollService : Service() {
         if (pending.code == 401) { state.connection = "credential rejected"; return }
         val body = pending.body ?: throw IllegalStateException("bad response")
         state.serverOffset = body.getLong("server_time") - System.currentTimeMillis() / 1000
+        state.updateLockScreenInfo(body.optJSONObject("lock_screen"))
         val cmds = body.getJSONArray("commands")
         val executor = CommandExecutor(this, api)
         for (i in 0 until cmds.length()) {
@@ -156,7 +157,8 @@ class CommandPollService : Service() {
         val sync = Enrollment.deviceInfo(this, state)
             .put("restriction_status", if (KioskRestrictionManager(this).isApplied()) "LOCKED" else "NONE")
         sync.remove("device_identifier")
-        api.sync(sync)
+        val syncRes = api.sync(sync)
+        syncRes.body?.optJSONObject("lock_screen")?.let { state.updateLockScreenInfo(it) }
         state.lastSync = now
         state.connection = "online"
     }

@@ -17,6 +17,15 @@ export function DevicesPage() {
   const [selected, setSelected] = useState<DeviceItem | null>(null);
   const [revealedImei, setRevealedImei] = useState("");
   const [confirmAction, setConfirmAction] = useState<"lock" | "unlock" | "release" | null>(null);
+  const [editLock, setEditLock] = useState({
+    emi_amount: "",
+    emi_due_date: "",
+    pending_emi_count: "",
+    dealer_name: "",
+    dealer_mobile: "",
+    dealer_company: "",
+  });
+  const [savingLock, setSavingLock] = useState(false);
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
 
@@ -68,6 +77,40 @@ export function DevicesPage() {
       setRevealedImei(r.imei || "(not recorded)");
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Reveal failed");
+    }
+  }
+
+  function openManage(d: DeviceItem) {
+    setSelected(d);
+    setRevealedImei("");
+    setEditLock({
+      emi_amount: d.emi_amount || "",
+      emi_due_date: d.emi_due_date || "",
+      pending_emi_count: d.pending_emi_count || "",
+      dealer_name: d.dealer_name || "",
+      dealer_mobile: d.dealer_mobile || "",
+      dealer_company: d.dealer_company || "",
+    });
+  }
+
+  async function saveLockDetails(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selected) return;
+    setSavingLock(true);
+    setErr("");
+    setMsg("");
+    try {
+      const r = await api<{ device: DeviceItem }>(`/api/v1/devices/${selected.id}/`, {
+        method: "PATCH",
+        body: JSON.stringify(editLock),
+      });
+      setSelected(r.device);
+      setMsg("Lock-screen EMI & dealer details updated (syncs automatically on next device poll).");
+      await load(page);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Failed to save lock-screen details");
+    } finally {
+      setSavingLock(false);
     }
   }
 
@@ -162,10 +205,7 @@ export function DevicesPage() {
                   <td className="p-3"><StatusBadge label={d.restriction_status} /></td>
                   <td className="p-3 flex flex-wrap gap-1.5">
                     <button
-                      onClick={() => {
-                        setSelected(d);
-                        setRevealedImei("");
-                      }}
+                      onClick={() => openManage(d)}
                       className="px-2.5 py-1 rounded border border-slate-300 hover:bg-slate-50 font-medium"
                     >
                       Manage
@@ -224,6 +264,60 @@ export function DevicesPage() {
                 )}
               </div>
             </div>
+            <form onSubmit={saveLockDetails} className="space-y-2 border-t border-slate-200 pt-3">
+              <div className="text-xs font-semibold text-slate-700">
+                Lock-Screen EMI &amp; Dealer Details <span className="font-normal text-slate-400">(all optional)</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <input
+                  value={editLock.emi_amount}
+                  onChange={(e) => setEditLock({ ...editLock, emi_amount: e.target.value })}
+                  placeholder="EMI Amount"
+                  className="rounded border border-slate-300 px-2.5 py-1.5 text-xs"
+                />
+                <input
+                  type="date"
+                  value={editLock.emi_due_date}
+                  onChange={(e) => setEditLock({ ...editLock, emi_due_date: e.target.value })}
+                  className="rounded border border-slate-300 px-2.5 py-1.5 text-xs"
+                />
+                <input
+                  type="number"
+                  min={0}
+                  value={editLock.pending_emi_count}
+                  onChange={(e) => setEditLock({ ...editLock, pending_emi_count: e.target.value })}
+                  placeholder="Pending EMI"
+                  className="rounded border border-slate-300 px-2.5 py-1.5 text-xs"
+                />
+                <input
+                  value={editLock.dealer_company}
+                  onChange={(e) => setEditLock({ ...editLock, dealer_company: e.target.value })}
+                  placeholder="Dealer Company"
+                  className="rounded border border-slate-300 px-2.5 py-1.5 text-xs"
+                />
+                <input
+                  value={editLock.dealer_name}
+                  onChange={(e) => setEditLock({ ...editLock, dealer_name: e.target.value })}
+                  placeholder="Dealer Name"
+                  className="rounded border border-slate-300 px-2.5 py-1.5 text-xs"
+                />
+                <input
+                  value={editLock.dealer_mobile}
+                  onChange={(e) => setEditLock({ ...editLock, dealer_mobile: e.target.value })}
+                  placeholder="Dealer Mobile"
+                  className="rounded border border-slate-300 px-2.5 py-1.5 text-xs"
+                />
+              </div>
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  disabled={savingLock}
+                  className="px-3 py-1 rounded bg-slate-800 text-white text-xs font-medium disabled:opacity-50"
+                >
+                  {savingLock ? "Saving..." : "Save Lock Details"}
+                </button>
+              </div>
+            </form>
             {selected.enrollment_status === "ENROLLED" && (
               <div className="flex flex-wrap gap-2 pt-2">
                 <button onClick={() => setConfirmAction("lock")} className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-medium">Lock Device</button>

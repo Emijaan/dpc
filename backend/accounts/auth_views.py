@@ -9,6 +9,7 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from accounts.tracking import record_user_access
 from audit.models import log_event
 from devices.ownership import get_account_type
 from roles.permissions import get_user_permissions
@@ -50,6 +51,7 @@ class LoginView(APIView):
             log_event(None, "LOGIN_FAILED", f"username={attempted}", request=request)
             return Response({"error": "invalid_credentials"}, status=status.HTTP_401_UNAUTHORIZED)
         user = s.user
+        record_user_access(user, request, force=True)
         log_event(None, "LOGIN_SUCCESS", f"user={user.username}", actor=user, request=request)
         return Response({**s.validated_data, "user": user_payload(user)})
 

@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { ShieldCheck } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 
 export function LoginPage() {
@@ -26,7 +25,7 @@ export function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
       <div className="w-full max-w-sm bg-white border border-slate-200 rounded-lg p-6 space-y-5">
         <div className="flex items-center gap-2.5">
-          <ShieldCheck className="w-6 h-6 text-indigo-600" />
+          <span className="text-2xl leading-none" role="img" aria-label="AK DeviceLock">🛡️</span>
           <div>
             <h1 className="text-lg font-semibold text-slate-900">AK DeviceLock</h1>
             <p className="text-xs text-slate-500">Sign in to manage devices &amp; entitlements</p>

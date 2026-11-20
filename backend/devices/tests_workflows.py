@@ -260,3 +260,76 @@ class RegistrationEnrollmentCommandWorkflowTests(TestCase):
         self.assertEqual(self._auth("wf_su").get("/api/v1/dashboard/stats/").status_code, 200)
         self.assertEqual(self._auth("wf_ret_a").get("/api/v1/dashboard/stats/").status_code, 200)
         self.assertEqual(va.get("/api/v1/dashboard/stats/").status_code, 200)
+
+    def test_optional_lock_screen_emi_and_dealer_fields(self):
+        # 1. Registration with zero fields works cleanly (every input is optional)
+        va = self._auth("wf_ven_a")
+        blank_reg = va.post("/api/v1/registrations/", {}, format="json")
+        self.assertEqual(blank_reg.status_code, 201, blank_reg.data)
+        self.assertEqual(blank_reg.data["device"]["emi_amount"], "")
+        self.assertEqual(blank_reg.data["device"]["dealer_company"], "")
+
+        # 2. Registration with partial optional EMI & dealer fields preserves them through enrollment
+        partial_reg = va.post(
+            "/api/v1/registrations/",
+            {
+                "emi_amount": "2500",
+                "emi_due_date": "2026-12-05",
+                "pending_emi_count": "6",
+                "dealer_name": "Rahul Sharma",
+                "dealer_mobile": "+919876543210",
+                "dealer_company": "AK Mobiles",
+            },
+            format="json",
+        )
+        self.assertEqual(partial_reg.status_code, 201, partial_reg.data)
+        enroll_tok = partial_reg.data["enrollment_token"]
+
+        dc = APIClient()
+        dev_reg = dc.post(
+            "/api/v1/devices/register/",
+            {"device_identifier": "wf-lock-dev-01", "manufacturer": "Vivo", "model": "Y20"},
+            HTTP_X_ENROLLMENT_TOKEN=enroll_tok,
+            format="json",
+        )
+        self.assertEqual(dev_reg.status_code, 201, dev_reg.data)
+        dev_id = dev_reg.data["device_id"]
+        dev_tok = dev_reg.data["device_token"]
+
+        dc.credentials(HTTP_AUTHORIZATION=f"Device {dev_tok}")
+        pending_res = dc.get("/api/v1/commands/pending/")
+        self.assertEqual(pending_res.status_code, 200)
+        self.assertEqual(
+            pending_res.data["lock_screen"],
+            {
+                "emi_amount": "2500",
+                "emi_due_date": "2026-12-05",
+                "pending_emi_count": "6",
+                "dealer_name": "Rahul Sharma",
+                "dealer_mobile": "+919876543210",
+                "dealer_company": "AK Mobiles",
+            },
+        )
+
+        # 3. Cross-tenant vendor cannot patch sibling vendor's device
+        vb = self._auth("wf_ven_b")
+        self.assertEqual(
+            vb.patch(f"/api/v1/devices/{dev_id}/", {"emi_amount": "9999"}, format="json").status_code,
+            403,
+        )
+
+        # 4. Owning vendor can update or blank out any field; sync returns updated lock_screen
+        upd = va.patch(
+            f"/api/v1/devices/{dev_id}/",
+            {"emi_amount": "3000", "dealer_company": ""},
+            format="json",
+        )
+        self.assertEqual(upd.status_code, 200, upd.data)
+        self.assertEqual(upd.data["device"]["emi_amount"], "3000")
+        self.assertEqual(upd.data["device"]["dealer_company"], "")
+        self.assertEqual(upd.data["device"]["dealer_name"], "Rahul Sharma")
+
+        sync_res = dc.post("/api/v1/devices/sync/", {"restriction_status": "NONE"}, format="json")
+        self.assertEqual(sync_res.status_code, 200)
+        self.assertEqual(sync_res.data["lock_screen"]["emi_amount"], "3000")
+        self.assertEqual(sync_res.data["lock_screen"]["dealer_company"], "")

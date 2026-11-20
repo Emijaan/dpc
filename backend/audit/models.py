@@ -21,6 +21,8 @@ class DeviceAuditLog(models.Model):
     event = models.CharField(max_length=60)
     result = models.CharField(max_length=300, blank=True)
     source_ip = models.GenericIPAddressField(null=True, blank=True)
+    client_device = models.CharField(max_length=128, blank=True, default="")
+    user_agent = models.CharField(max_length=255, blank=True, default="")
     timestamp = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -39,6 +41,54 @@ def client_ip(request) -> str | None:
     return request.META.get("REMOTE_ADDR")
 
 
+def parse_client_device(ua: str) -> str:
+    s = (ua or "").strip()
+    if not s:
+        return ""
+    low = s.lower()
+    if "dalvik/" in low or ("android" in low and "mozilla" not in low):
+        return s[:128]
+    if "iphone" in low:
+        os_name = "iPhone"
+    elif "ipad" in low:
+        os_name = "iPad"
+    elif "android" in low:
+        os_name = "Android"
+    elif "macintosh" in low or "mac os x" in low:
+        os_name = "macOS"
+    elif "windows" in low:
+        os_name = "Windows"
+    elif "linux" in low:
+        os_name = "Linux"
+    else:
+        os_name = "Other"
+
+    if "edg/" in low:
+        browser = "Edge"
+    elif "opr/" in low or "opera" in low:
+        browser = "Opera"
+    elif "chrome/" in low or "crios/" in low:
+        browser = "Chrome"
+    elif "firefox/" in low or "fxios/" in low:
+        browser = "Firefox"
+    elif "safari/" in low:
+        browser = "Safari"
+    elif "curl/" in low:
+        return s.split()[0][:128]
+    elif "python" in low:
+        return s.split()[0][:128]
+    else:
+        return s[:128]
+    return f"{browser} on {os_name}"
+
+
+def client_device_info(request) -> tuple[str, str]:
+    if request is None:
+        return "", ""
+    ua = (request.META.get("HTTP_USER_AGENT") or "")[:255]
+    return parse_client_device(ua)[:128], ua
+
+
 def log_event(
     device,
     event,
@@ -52,6 +102,7 @@ def log_event(
     target_id="",
 ):
     ip = source_ip or client_ip(request)
+    cdev, ua = client_device_info(request)
     user = actor
     if user is None and request is not None and getattr(request, "user", None) is not None:
         if getattr(request.user, "is_authenticated", False) and hasattr(request.user, "pk"):
@@ -80,4 +131,6 @@ def log_event(
         event=event,
         result=str(result)[:300],
         source_ip=ip,
+        client_device=cdev,
+        user_agent=ua,
     )

@@ -118,6 +118,14 @@ class Device(models.Model):
     is_disabled = models.BooleanField(default=False)
     fcm_token = models.CharField(max_length=512, blank=True)  # reserved; FCM not enabled yet
 
+    # Optional EMI & dealer/vendor display metadata shown on device lock screen
+    emi_amount = models.CharField(max_length=32, blank=True, default="")
+    emi_due_date = models.CharField(max_length=32, blank=True, default="")
+    pending_emi_count = models.CharField(max_length=16, blank=True, default="")
+    dealer_name = models.CharField(max_length=128, blank=True, default="")
+    dealer_mobile = models.CharField(max_length=32, blank=True, default="")
+    dealer_company = models.CharField(max_length=160, blank=True, default="")
+
     # Permanent ownership & tenant isolation associations
     customer = models.ForeignKey(
         Customer, null=True, blank=True, on_delete=models.PROTECT, related_name="devices"
@@ -249,6 +257,17 @@ class Device(models.Model):
     def touch(self):
         self.last_seen = timezone.now()
         self.connection_status = "ONLINE"
+
+    def lock_screen_info(self) -> dict:
+        """Return optional EMI and dealer/vendor contact metadata for the Android lock screen."""
+        return {
+            "emi_amount": (self.emi_amount or "").strip(),
+            "emi_due_date": (self.emi_due_date or "").strip(),
+            "pending_emi_count": (self.pending_emi_count or "").strip(),
+            "dealer_name": (self.dealer_name or "").strip(),
+            "dealer_mobile": (self.dealer_mobile or "").strip(),
+            "dealer_company": (self.dealer_company or "").strip(),
+        }
 
 
 class EnrollmentSession(models.Model):

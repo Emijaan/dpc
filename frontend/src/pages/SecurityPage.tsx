@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { ConfirmModal, StatusBadge } from "../components/UI";
-import type { SigningKeyItem } from "../types";
+import type { AccountAccessItem, SigningKeyItem } from "../types";
 
 export function SecurityPage() {
   const [keys, setKeys] = useState<SigningKeyItem[]>([]);
+  const [accounts, setAccounts] = useState<AccountAccessItem[]>([]);
   const [revokeId, setRevokeId] = useState<string | null>(null);
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
@@ -12,10 +13,14 @@ export function SecurityPage() {
   async function load() {
     setErr("");
     try {
-      const r = await api<{ signing_keys: SigningKeyItem[] }>("/api/v1/keys/");
-      setKeys(r.signing_keys);
+      const [k, a] = await Promise.all([
+        api<{ signing_keys: SigningKeyItem[] }>("/api/v1/keys/"),
+        api<{ accounts: AccountAccessItem[] }>("/api/v1/accounts/"),
+      ]);
+      setKeys(k.signing_keys);
+      setAccounts(a.accounts);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Failed to load keys");
+      setErr(e instanceof Error ? e.message : "Failed to load security data");
     }
   }
 
@@ -102,6 +107,34 @@ export function SecurityPage() {
         onCancel={() => setRevokeId(null)}
         onConfirm={() => (revokeId ? revokeKey(revokeId) : Promise.resolve())}
       />
+
+      <div className="bg-white border border-slate-200 rounded-lg overflow-x-auto">
+        <div className="px-4 py-3 border-b border-slate-200 font-semibold text-sm">All User Access (IP Address &amp; Device)</div>
+        <table className="w-full text-left text-xs">
+          <thead>
+            <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
+              <th className="p-3">Username</th>
+              <th className="p-3">Type</th>
+              <th className="p-3">Last IP Address</th>
+              <th className="p-3">Device / Browser</th>
+              <th className="p-3">Last Active</th>
+              <th className="p-3">Status</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {accounts.map((u) => (
+              <tr key={u.id}>
+                <td className="p-3 font-medium text-slate-900">{u.username}</td>
+                <td className="p-3"><StatusBadge label={u.account_type ?? "STAFF"} variant="info" /></td>
+                <td className="p-3"><code>{u.last_ip || "-"}</code></td>
+                <td className="p-3" title={u.last_user_agent || ""}>{u.last_device || "-"}</td>
+                <td className="p-3">{u.last_active_at ? new Date(u.last_active_at).toLocaleString() : "Never"}</td>
+                <td className="p-3"><StatusBadge label={u.is_active ? "ACTIVE" : "INACTIVE"} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

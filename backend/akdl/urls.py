@@ -1,7 +1,12 @@
 from django.contrib import admin
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.urls import include, path
 from django.views.generic import RedirectView
+
+
+def favicon_view(request):
+    svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><text y="52" font-size="52">🛡️</text></svg>'
+    return HttpResponse(svg, content_type="image/svg+xml")
 
 from accounts.auth_views import HealthView as AuthHealth
 from devices import panel, views as device_views
@@ -64,6 +69,7 @@ def api_docs(request):
 
 urlpatterns = [
     path("", RedirectView.as_view(pattern_name="panel", permanent=False)),
+    path("favicon.ico", favicon_view),
     path("admin/", admin.site.urls),
     path("panel/", panel.panel_home, name="panel"),
     path("panel/qr/", panel.panel_qr, name="panel_qr"),

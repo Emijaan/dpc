@@ -52,6 +52,10 @@ def account_dict(u) -> dict:
         "status": tenant.status if tenant else (TenantStatus.ACTIVE if u.is_active else TenantStatus.INACTIVE),
         "entitlement_quota": prof.entitlement_quota if prof else None,
         "entitlements_consumed": prof.entitlements_consumed if prof else 0,
+        "last_ip": prof.last_ip if prof else None,
+        "last_device": prof.last_device if prof else "",
+        "last_user_agent": prof.last_user_agent if prof else "",
+        "last_active_at": prof.last_active_at.isoformat() if (prof and prof.last_active_at) else None,
         "roles": list(u.account_roles.values_list("role__name", flat=True)),
         "created_at": u.date_joined.isoformat(),
     }
@@ -73,6 +77,9 @@ def retailer_dict(r: Retailer) -> dict:
         "is_active": r.account.is_active,
         "entitlement_quota": prof.entitlement_quota if prof else None,
         "entitlements_consumed": prof.entitlements_consumed if prof else 0,
+        "last_ip": prof.last_ip if prof else None,
+        "last_device": prof.last_device if prof else "",
+        "last_active_at": prof.last_active_at.isoformat() if (prof and prof.last_active_at) else None,
         "created_at": r.created_at.isoformat(),
         "updated_at": r.updated_at.isoformat(),
     }
@@ -97,6 +104,9 @@ def vendor_dict(v: Vendor) -> dict:
         "is_active": v.account.is_active,
         "entitlement_quota": prof.entitlement_quota if prof else None,
         "entitlements_consumed": prof.entitlements_consumed if prof else 0,
+        "last_ip": prof.last_ip if prof else None,
+        "last_device": prof.last_device if prof else "",
+        "last_active_at": prof.last_active_at.isoformat() if (prof and prof.last_active_at) else None,
         "created_at": v.created_at.isoformat(),
         "updated_at": v.updated_at.isoformat(),
     }

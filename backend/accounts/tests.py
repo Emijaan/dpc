@@ -126,3 +126,45 @@ class JwtAuthTests(TestCase):
     def test_health(self):
         r = APIClient().get("/api/v1/health/")
         self.assertEqual((r.status_code, r.data), (200, {"status": "ok"}))
+
+    def test_user_ip_and_device_tracked_for_admin_visibility(self):
+        ua = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/125.0.0.0 Safari/537.36"
+        r = self.c.post(
+            "/api/v1/auth/login/",
+            {"username": "ret1", "password": self.PW},
+            format="json",
+            HTTP_X_FORWARDED_FOR="203.0.113.42, 10.0.0.1",
+            HTTP_USER_AGENT=ua,
+        )
+        self.assertEqual(r.status_code, 200)
+        prof = AccountProfile.objects.get(user=self.ret)
+        self.assertEqual(prof.last_ip, "203.0.113.42")
+        self.assertEqual(prof.last_device, "Chrome on macOS")
+        self.assertIn("Chrome/125", prof.last_user_agent)
+        self.assertIsNotNone(prof.last_active_at)
+
+        # Authenticated JWT call updates IP/device when client changes
+        iphone_ua = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1"
+        c = APIClient()
+        c.credentials(HTTP_AUTHORIZATION=f"Bearer {r.data['access']}")
+        self.assertEqual(
+            c.get("/api/v1/auth/me/", HTTP_X_FORWARDED_FOR="198.51.100.77", HTTP_USER_AGENT=iphone_ua).status_code,
+            200,
+        )
+        prof.refresh_from_db()
+        self.assertEqual(prof.last_ip, "198.51.100.77")
+        self.assertEqual(prof.last_device, "Safari on iPhone")
+
+        # Superuser sees user IP & device in /api/v1/accounts/ and /api/v1/audit/
+        su_login = self.c.post("/api/v1/auth/login/", {"username": "boss", "password": self.PW}, format="json")
+        sc = APIClient()
+        sc.credentials(HTTP_AUTHORIZATION=f"Bearer {su_login.data['access']}")
+        accts = sc.get("/api/v1/accounts/").data["accounts"]
+        ret_row = next(a for a in accts if a["username"] == "ret1")
+        self.assertEqual(ret_row["last_ip"], "198.51.100.77")
+        self.assertEqual(ret_row["last_device"], "Safari on iPhone")
+
+        audits = sc.get("/api/v1/audit/").data["audit_logs"]
+        login_log = next(a for a in audits if a["event"] == "LOGIN_SUCCESS" and a["actor"] == "ret1")
+        self.assertEqual(login_log["source_ip"], "203.0.113.42")
+        self.assertEqual(login_log["client_device"], "Chrome on macOS")

@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22><text y=%2252%22 font-size=%2252%22>🛡️</text></svg>">
 <title>AK DeviceLock • Control Panel</title>
 <style>
 :root{--bg:#090d16;--card:#111827;--border:#1e293b;--text:#f8fafc;--muted:#94a3b8;--blue:#2563eb;--green:#059669;--red:#dc2626;--slate:#334155}
@@ -50,7 +51,7 @@ label.chk input{width:auto;margin:0}
 
 <div class="topbar">
   <div class="brand">
-    <h1>AK DeviceLock</h1>
+    <h1>🛡️ AK DeviceLock</h1>
     <p>Signed in as <b>{{ request.user.username }}</b> ({{ account_type|default:"STAFF" }})</p>
   </div>
   <div class="actions-top">
@@ -152,13 +153,14 @@ label.chk input{width:auto;margin:0}
     <h2>Users &amp; Device Limits</h2>
     <div class="table-wrap">
     <table>
-      <tr><th>Username</th><th>Type</th><th>Retailer</th><th>Used / Limit</th><th>Adjust Device Limit</th><th>Status &amp; Actions</th></tr>
+      <tr><th>Username</th><th>Type</th><th>Retailer</th><th>Used / Limit</th><th>Last IP &amp; Device</th><th>Adjust Device Limit</th><th>Status &amp; Actions</th></tr>
       {% for a in accounts %}
       <tr>
         <td><b>{{ a.username }}</b></td>
         <td><span class="badge b-blue">{% if a.is_superuser %}SUPERUSER{% elif a.profile %}{{ a.profile.account_type }}{% else %}STAFF{% endif %}</span></td>
         <td>{% if a.profile and a.profile.retailer %}{{ a.profile.retailer.username }}{% else %}-{% endif %}</td>
         <td>{% if a.profile %}{{ a.profile.entitlements_consumed }} / {{ a.profile.entitlement_quota|default:"Unlimited" }}{% else %}-{% endif %}</td>
+        <td><code>{{ a.profile.last_ip|default:"-" }}</code><br><span style="color:var(--muted);font-size:11.5px">{{ a.profile.last_device|default:"-" }}</span></td>
         <td>
           {% if "accounts.manage" in perms %}
           <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">
@@ -261,17 +263,18 @@ label.chk input{width:auto;margin:0}
     <h2>Audit Logs</h2>
     <div class="table-wrap">
     <table>
-      <tr><th>Time</th><th>Actor</th><th>Event</th><th>Device</th><th>Details</th></tr>
+      <tr><th>Time</th><th>Actor</th><th>Event</th><th>IP / Client Device</th><th>Device</th><th>Details</th></tr>
       {% for a in audit_logs %}
       <tr>
         <td>{{ a.timestamp }}</td>
         <td>{{ a.actor.username|default:"system/device" }}</td>
         <td><b>{{ a.event }}</b></td>
+        <td><code>{{ a.source_ip|default:"-" }}</code><br><span style="color:var(--muted);font-size:11.5px">{{ a.client_device|default:"-" }}</span></td>
         <td>{% if a.device %}{{ a.device.model }}{% else %}-{% endif %}</td>
         <td>{{ a.result }}</td>
       </tr>
       {% empty %}
-      <tr><td colspan="5" style="text-align:center;color:var(--muted)">No audit logs yet.</td></tr>
+      <tr><td colspan="6" style="text-align:center;color:var(--muted)">No audit logs yet.</td></tr>
       {% endfor %}
     </table>
     </div>

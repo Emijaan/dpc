@@ -83,6 +83,23 @@ class SyncSerializer(DeviceInfoSerializer):
 
 
 INFO_FIELDS = ["manufacturer", "model", "android_version", "sdk_version", "app_version", "fcm_token"]
+LOCK_SCREEN_FIELDS = (
+    "emi_amount",
+    "emi_due_date",
+    "pending_emi_count",
+    "dealer_name",
+    "dealer_mobile",
+    "dealer_company",
+)
+
+
+class DeviceLockScreenUpdateSerializer(serializers.Serializer):
+    emi_amount = serializers.CharField(max_length=32, required=False, allow_blank=True, allow_null=True)
+    emi_due_date = serializers.CharField(max_length=32, required=False, allow_blank=True, allow_null=True)
+    pending_emi_count = serializers.CharField(max_length=16, required=False, allow_blank=True, allow_null=True)
+    dealer_name = serializers.CharField(max_length=128, required=False, allow_blank=True, allow_null=True)
+    dealer_mobile = serializers.CharField(max_length=32, required=False, allow_blank=True, allow_null=True)
+    dealer_company = serializers.CharField(max_length=160, required=False, allow_blank=True, allow_null=True)
 
 
 def device_dict(d: Device) -> dict:
@@ -102,6 +119,12 @@ def device_dict(d: Device) -> dict:
         "connection_status": "ONLINE" if d.is_online else "OFFLINE",
         "restriction_status": d.restriction_status,
         "is_disabled": d.is_disabled,
+        "emi_amount": d.emi_amount,
+        "emi_due_date": d.emi_due_date,
+        "pending_emi_count": d.pending_emi_count,
+        "dealer_name": d.dealer_name,
+        "dealer_mobile": d.dealer_mobile,
+        "dealer_company": d.dealer_company,
         "last_seen": d.last_seen.isoformat() if d.last_seen else None,
         "registration_date": d.registration_date.isoformat() if d.registration_date else None,
         "released_at": d.released_at.isoformat() if d.released_at else None,
@@ -330,12 +353,19 @@ class SyncView(DeviceBase):
             command_status__in=[DeviceCommand.Status.PENDING, DeviceCommand.Status.DELIVERED]
         ).count()
         log_event(device, "DEVICE_SYNC", f"pending={pending}")
-        return Response({"server_time": int(timezone.now().timestamp()), "pending_commands": pending})
+        return Response({
+            "server_time": int(timezone.now().timestamp()),
+            "pending_commands": pending,
+            "lock_screen": device.lock_screen_info(),
+        })
 
 
 class StatusView(DeviceBase):
     def get(self, request):
-        return Response(device_dict(request.user.device))
+        device = request.user.device
+        data = device_dict(device)
+        data["lock_screen"] = device.lock_screen_info()
+        return Response(data)
 
 
 class RenewTokenView(DeviceBase):
@@ -471,6 +501,20 @@ class DeviceInfoView(OperatorBase):
             "result": last.execution_result,
         }
         return Response(data)
+
+    def patch(self, request, device_id):
+        device = self.get_device(request, device_id)
+        s = DeviceLockScreenUpdateSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        updated_fields = []
+        for f in LOCK_SCREEN_FIELDS:
+            if f in s.validated_data:
+                setattr(device, f, (s.validated_data[f] or "").strip())
+                updated_fields.append(f)
+        if updated_fields:
+            device.save(update_fields=[*updated_fields, "updated_at"])
+            log_event(device, "LOCK_SCREEN_INFO_UPDATED", ",".join(updated_fields), request=request)
+        return Response({"device": device_dict(device)})
 
 
 class DeviceRevealImeiView(OperatorBase):
@@ -704,6 +748,12 @@ class RegistrationCreateSerializer(serializers.Serializer):
     model = serializers.CharField(max_length=64, required=False, allow_blank=True, default="")
     imei = serializers.CharField(max_length=17, required=False, allow_blank=True, default="")
     android_version = serializers.CharField(max_length=16, required=False, allow_blank=True, default="14")
+    emi_amount = serializers.CharField(max_length=32, required=False, allow_blank=True, allow_null=True, default="")
+    emi_due_date = serializers.CharField(max_length=32, required=False, allow_blank=True, allow_null=True, default="")
+    pending_emi_count = serializers.CharField(max_length=16, required=False, allow_blank=True, allow_null=True, default="")
+    dealer_name = serializers.CharField(max_length=128, required=False, allow_blank=True, allow_null=True, default="")
+    dealer_mobile = serializers.CharField(max_length=32, required=False, allow_blank=True, allow_null=True, default="")
+    dealer_company = serializers.CharField(max_length=160, required=False, allow_blank=True, allow_null=True, default="")
     enrollment_method = serializers.ChoiceField(
         choices=Device.EnrollmentMethod.choices,
         required=False,
@@ -767,6 +817,12 @@ class RegistrationCreateView(APIView):
                 manufacturer=d["brand"],
                 model=d["model"],
                 android_version=d["android_version"],
+                emi_amount=(d.get("emi_amount") or "").strip(),
+                emi_due_date=(d.get("emi_due_date") or "").strip(),
+                pending_emi_count=(d.get("pending_emi_count") or "").strip(),
+                dealer_name=(d.get("dealer_name") or "").strip(),
+                dealer_mobile=(d.get("dealer_mobile") or "").strip(),
+                dealer_company=(d.get("dealer_company") or "").strip(),
                 enrollment_method=d["enrollment_method"],
                 enrollment_status=Device.Enrollment.PENDING,
                 ownership_status=Device.OwnershipStatus.ACTIVE,
@@ -1211,6 +1267,8 @@ class AuditHistoryView(APIView):
                     "retailer_id": a.retailer_id,
                     "vendor_id": a.vendor_id,
                     "source_ip": a.source_ip,
+                    "client_device": a.client_device,
+                    "user_agent": a.user_agent,
                     "timestamp": a.timestamp.isoformat(),
                 }
                 for a in qs[:200]

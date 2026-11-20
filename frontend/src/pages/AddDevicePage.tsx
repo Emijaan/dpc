@@ -17,6 +17,12 @@ export function AddDevicePage() {
   const [model, setModel] = useState("");
   const [imei, setImei] = useState("");
   const [androidVersion, setAndroidVersion] = useState("14");
+  const [emiAmount, setEmiAmount] = useState("");
+  const [emiDueDate, setEmiDueDate] = useState("");
+  const [pendingEmiCount, setPendingEmiCount] = useState("");
+  const [dealerName, setDealerName] = useState("");
+  const [dealerMobile, setDealerMobile] = useState("");
+  const [dealerCompany, setDealerCompany] = useState("");
   const [method, setMethod] = useState<"QR_9_15" | "ADB_16">("QR_9_15");
   const [reg, setReg] = useState<RegResponse | null>(null);
   const [testDpcSvg, setTestDpcSvg] = useState("");
@@ -41,6 +47,12 @@ export function AddDevicePage() {
     setModel("");
     setImei("");
     setAndroidVersion("14");
+    setEmiAmount("");
+    setEmiDueDate("");
+    setPendingEmiCount("");
+    setDealerName("");
+    setDealerMobile("");
+    setDealerCompany("");
     setMethod("QR_9_15");
     setReg(null);
     setTestDpcSvg("");
@@ -68,6 +80,12 @@ export function AddDevicePage() {
           model: model.trim(),
           imei: imei.trim(),
           android_version: androidVersion.trim(),
+          emi_amount: emiAmount.trim(),
+          emi_due_date: emiDueDate.trim(),
+          pending_emi_count: pendingEmiCount.trim(),
+          dealer_name: dealerName.trim(),
+          dealer_mobile: dealerMobile.trim(),
+          dealer_company: dealerCompany.trim(),
           enrollment_method: method,
         }),
       });
@@ -176,6 +194,70 @@ export function AddDevicePage() {
           </div>
           <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-xs text-indigo-900">
             Selected enrollment method: <b>{method === "ADB_16" ? "Android 16 USB/ADB BAT Provisioning" : "Android 9–15 Guided QR Provisioning"}</b>
+          </div>
+
+          <div className="border-t border-slate-200 pt-4 space-y-3">
+            <h2 className="text-sm font-semibold text-slate-800">
+              EMI &amp; Dealer / Vendor Lock-Screen Details <span className="text-xs font-normal text-slate-500">(every field is optional)</span>
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">EMI Amount (optional)</label>
+                <input
+                  value={emiAmount}
+                  onChange={(e) => setEmiAmount(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  placeholder="e.g. ₹2,500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">EMI Due Date (optional)</label>
+                <input
+                  type="date"
+                  value={emiDueDate}
+                  onChange={(e) => setEmiDueDate(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Total Pending EMI (optional)</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={pendingEmiCount}
+                  onChange={(e) => setPendingEmiCount(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  placeholder="e.g. 6"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Dealer / Vendor Company (optional)</label>
+                <input
+                  value={dealerCompany}
+                  onChange={(e) => setDealerCompany(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  placeholder="e.g. AK Mobiles Pvt Ltd"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Dealer / Vendor Name (optional)</label>
+                <input
+                  value={dealerName}
+                  onChange={(e) => setDealerName(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  placeholder="e.g. Rahul Sharma"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Dealer / Vendor Mobile No (optional)</label>
+                <input
+                  value={dealerMobile}
+                  onChange={(e) => setDealerMobile(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  placeholder="e.g. +91 9876543210"
+                />
+              </div>
+            </div>
           </div>
         </div>
 

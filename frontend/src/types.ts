@@ -46,7 +46,21 @@ export interface RetailerItem {
   is_active: boolean;
   entitlement_quota: number | null;
   entitlements_consumed: number;
+  last_ip?: string | null;
+  last_device?: string;
+  last_active_at?: string | null;
   created_at: string;
+}
+
+export interface AccountAccessItem {
+  id: number;
+  username: string;
+  account_type: AccountType | null;
+  is_active: boolean;
+  last_ip: string | null;
+  last_device: string;
+  last_user_agent: string;
+  last_active_at: string | null;
 }
 
 export interface VendorItem extends RetailerItem {
@@ -71,6 +85,12 @@ export interface DeviceItem {
   connection_status: string;
   restriction_status: string;
   is_disabled: boolean;
+  emi_amount: string;
+  emi_due_date: string;
+  pending_emi_count: string;
+  dealer_name: string;
+  dealer_mobile: string;
+  dealer_company: string;
   last_seen: string | null;
   registration_date: string | null;
   released_at: string | null;
@@ -148,6 +168,8 @@ export interface AuditItem {
   target_type: string;
   target_id: string;
   source_ip: string | null;
+  client_device?: string;
+  user_agent?: string;
   timestamp: string;
 }
 

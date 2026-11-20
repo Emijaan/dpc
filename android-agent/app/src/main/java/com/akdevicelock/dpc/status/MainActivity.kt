@@ -98,7 +98,7 @@ class MainActivity : Activity() {
         val restricted = kiosk.isApplied() && kiosk.isSupported()
         val owner = AkDeviceAdminReceiver.isDeviceOwner(this)
         val batt = isBatteryExempt()
-        val key = "$restricted|$owner|$batt|${state.isRegistered}|${state.lastSync}|${state.connection}|${state.lastCommand}"
+        val key = "$restricted|$owner|$batt|${state.isRegistered}|${state.lastSync}|${state.connection}|${state.lastCommand}|${state.emiAmount}|${state.emiDueDate}|${state.pendingEmiCount}|${state.dealerName}|${state.dealerMobile}|${state.dealerCompany}"
         if (key == renderedKey) return
         renderedKey = key
         if (restricted) {
@@ -418,7 +418,37 @@ class MainActivity : Activity() {
         })
         page.addView(banner)
 
-        // Retailer / Administrator Support Card
+        // Optional EMI Details Card (shown only when at least one EMI field is filled)
+        val emiLines = mutableListOf<String>()
+        if (state.emiAmount.isNotBlank()) emiLines.add("EMI Amount     :  ${state.emiAmount}")
+        if (state.emiDueDate.isNotBlank()) emiLines.add("Due Date       :  ${state.emiDueDate}")
+        if (state.pendingEmiCount.isNotBlank()) emiLines.add("Pending EMI    :  ${state.pendingEmiCount}")
+        if (emiLines.isNotEmpty()) {
+            val emiCard = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                background = cardBg("#111827", "#F59E0B", 14)
+                setPadding(dp(16), dp(14), dp(16), dp(14))
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { topMargin = dp(14) }
+            }
+            emiCard.addView(TextView(this).apply {
+                text = "EMI PAYMENT DETAILS"
+                textSize = 11f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(Color.parseColor("#FBBF24"))
+            })
+            emiCard.addView(TextView(this).apply {
+                text = emiLines.joinToString("\n")
+                textSize = 14f
+                setTextColor(Color.parseColor("#F8FAFC"))
+                setPadding(0, dp(6), 0, 0)
+            })
+            page.addView(emiCard)
+        }
+
+        // Dealer / Vendor / Administrator Support Card
         val supportCard = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             background = cardBg("#111827", "#1E293B", 14)
@@ -428,22 +458,39 @@ class MainActivity : Activity() {
                 LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply { topMargin = dp(14) }
         }
+        val hasDealerDetails = state.dealerCompany.isNotBlank() ||
+            state.dealerName.isNotBlank() ||
+            state.dealerMobile.isNotBlank()
         supportCard.addView(TextView(this).apply {
-            text = "ADMINISTRATOR / RETAILER DETAILS"
+            text = if (hasDealerDetails) "DEALER / VENDOR DETAILS" else "ADMINISTRATOR / RETAILER DETAILS"
             textSize = 11f
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(Color.parseColor("#60A5FA"))
         })
         val supportName = getString(R.string.support_name)
         val supportPhone = getString(R.string.support_phone)
+        val dealerLines = mutableListOf<String>()
+        if (state.dealerCompany.isNotBlank()) dealerLines.add("Company :  ${state.dealerCompany}")
+        if (state.dealerName.isNotBlank()) dealerLines.add("Name    :  ${state.dealerName}")
+        if (state.dealerMobile.isNotBlank()) dealerLines.add("Mobile  :  ${state.dealerMobile}")
         supportCard.addView(TextView(this).apply {
-            text = "Name   :  $supportName\nContact :  $supportPhone"
+            text = if (dealerLines.isNotEmpty()) {
+                dealerLines.joinToString("\n")
+            } else {
+                "Name   :  $supportName\nContact :  $supportPhone"
+            }
             textSize = 14f
             setTextColor(Color.parseColor("#F1F5F9"))
             setPadding(0, dp(6), 0, dp(6))
         })
-        supportCard.addView(styledButton("📞 Call Administrator ($supportPhone)", "#2563EB") {
-            startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$supportPhone")))
+        val dialNumber = state.dealerMobile.ifBlank { supportPhone }
+        val dialLabel = if (state.dealerMobile.isNotBlank()) {
+            "📞 Call Dealer / Vendor ($dialNumber)"
+        } else {
+            "📞 Call Administrator ($dialNumber)"
+        }
+        supportCard.addView(styledButton(dialLabel, "#2563EB") {
+            startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$dialNumber")))
         })
         page.addView(supportCard)
 

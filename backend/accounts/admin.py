@@ -5,9 +5,12 @@ from accounts.models import AccountProfile, Retailer, Vendor
 
 @admin.register(AccountProfile)
 class AccountProfileAdmin(admin.ModelAdmin):
-    list_display = ("user", "account_type", "retailer", "entitlement_quota", "entitlements_consumed")
+    list_display = (
+        "user", "account_type", "retailer", "entitlement_quota",
+        "entitlements_consumed", "last_ip", "last_device", "last_active_at",
+    )
     list_filter = ("account_type",)
-    search_fields = ("user__username", "retailer__username")
+    search_fields = ("user__username", "retailer__username", "last_ip", "last_device")
 
 
 @admin.register(Retailer)

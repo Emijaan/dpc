@@ -73,7 +73,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen flex bg-slate-50">
       <aside className="hidden lg:flex lg:flex-col lg:w-56 bg-white border-r border-slate-200 p-4 shrink-0">
         <div className="px-2 pb-5 flex items-center gap-2">
-          <ShieldCheck className="w-5 h-5 text-indigo-600" />
+          <span className="text-xl leading-none" role="img" aria-label="AK DeviceLock">🛡️</span>
           <span className="font-semibold text-base text-slate-900">AK DeviceLock</span>
         </div>
         {navList}
@@ -83,7 +83,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="fixed inset-0 z-40 lg:hidden flex">
           <div className="w-64 bg-white h-full border-r border-slate-200 p-4 space-y-4">
             <div className="flex items-center justify-between">
-              <span className="font-semibold text-base">AK DeviceLock</span>
+              <span className="font-semibold text-base flex items-center gap-2"><span>🛡️</span> AK DeviceLock</span>
               <button onClick={() => setMobileOpen(false)} className="p-1 text-slate-500">
                 <X className="w-5 h-5" />
               </button>

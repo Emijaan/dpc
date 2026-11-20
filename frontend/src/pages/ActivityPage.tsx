@@ -65,6 +65,7 @@ export function ActivityPage({ mode }: { mode: "commands" | "audit" }) {
                 <th className="p-3">Event</th>
                 <th className="p-3">Target</th>
                 <th className="p-3">IP</th>
+                <th className="p-3">Device / Browser</th>
                 <th className="p-3">Details</th>
               </tr>
             </thead>
@@ -75,7 +76,8 @@ export function ActivityPage({ mode }: { mode: "commands" | "audit" }) {
                   <td className="p-3">{a.actor ?? "system/device"}</td>
                   <td className="p-3 font-medium">{a.event}</td>
                   <td className="p-3">{a.target_type ? `${a.target_type}:${a.target_id.slice(0, 8)}` : "-"}</td>
-                  <td className="p-3">{a.source_ip ?? "-"}</td>
+                  <td className="p-3"><code>{a.source_ip ?? "-"}</code></td>
+                  <td className="p-3" title={a.user_agent || ""}>{a.client_device || "-"}</td>
                   <td className="p-3">{a.result || "-"}</td>
                 </tr>
               ))}
