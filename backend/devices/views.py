@@ -118,7 +118,9 @@ def device_dict(d: Device) -> dict:
     }
 
 
-def customer_dict(c: Customer) -> dict:
+def customer_dict(c: Customer | None) -> dict | None:
+    if c is None:
+        return None
     return {
         "id": str(c.id),
         "full_name": c.full_name,
@@ -202,7 +204,12 @@ class RegisterView(APIView):
                 )
 
             if session is not None:
-                if not session.is_usable:
+                if (
+                    not session.is_usable
+                    or session.registered_device_id is not None
+                    or session.used_at is not None
+                    or (session.pending_device_id and session.pending_device.enrollment_status == Device.Enrollment.RELEASED)
+                ):
                     if session.status == EnrollmentSession.Status.PENDING and session.expires_at <= timezone.now():
                         session.status = EnrollmentSession.Status.EXPIRED
                         session.token_encrypted = ""
@@ -690,13 +697,13 @@ class CustomerRevealView(APIView):
 
 
 class RegistrationCreateSerializer(serializers.Serializer):
-    customer_name = serializers.CharField(min_length=2, max_length=128)
-    customer_mobile = serializers.CharField(min_length=6, max_length=32)
-    customer_email = serializers.EmailField()
-    brand = serializers.CharField(min_length=1, max_length=64)
-    model = serializers.CharField(min_length=1, max_length=64)
-    imei = serializers.CharField(min_length=14, max_length=17)
-    android_version = serializers.CharField(min_length=1, max_length=16)
+    customer_name = serializers.CharField(max_length=128, required=False, allow_blank=True, default="")
+    customer_mobile = serializers.CharField(max_length=32, required=False, allow_blank=True, default="")
+    customer_email = serializers.EmailField(required=False, allow_blank=True, default="")
+    brand = serializers.CharField(max_length=64, required=False, allow_blank=True, default="")
+    model = serializers.CharField(max_length=64, required=False, allow_blank=True, default="")
+    imei = serializers.CharField(max_length=17, required=False, allow_blank=True, default="")
+    android_version = serializers.CharField(max_length=16, required=False, allow_blank=True, default="14")
     enrollment_method = serializers.ChoiceField(
         choices=Device.EnrollmentMethod.choices,
         required=False,
@@ -705,13 +712,15 @@ class RegistrationCreateSerializer(serializers.Serializer):
     ttl_seconds = serializers.IntegerField(min_value=60, max_value=86400, required=False, default=900)
 
     def validate_imei(self, val):
-        cleaned = val.strip()
+        cleaned = (val or "").strip()
+        if not cleaned:
+            return ""
         if not luhn_valid(cleaned):
             raise serializers.ValidationError("Invalid IMEI format or checksum.")
         return cleaned
 
     def validate_android_version(self, val):
-        v = val.strip()
+        v = (val or "").strip() or "14"
         try:
             major = int(v.split(".")[0])
         except ValueError:
@@ -738,15 +747,19 @@ class RegistrationCreateView(APIView):
         reg_ref = f"REG-{uuid.uuid4().hex[:8].upper()}"
 
         with transaction.atomic():
-            customer = Customer(
-                full_name=d["customer_name"],
-                retailer=retailer,
-                vendor=vendor,
-                registered_by_account=request.user,
-            )
-            customer.set_mobile(d["customer_mobile"])
-            customer.set_email(d["customer_email"])
-            customer.save()
+            customer = None
+            if d["customer_name"] or d["customer_mobile"] or d["customer_email"]:
+                customer = Customer(
+                    full_name=d["customer_name"] or d["customer_mobile"] or d["customer_email"],
+                    retailer=retailer,
+                    vendor=vendor,
+                    registered_by_account=request.user,
+                )
+                if d["customer_mobile"]:
+                    customer.set_mobile(d["customer_mobile"])
+                if d["customer_email"]:
+                    customer.set_email(d["customer_email"])
+                customer.save()
 
             pending_dev = Device(
                 device_identifier=f"pending-{uuid.uuid4().hex[:16]}",
@@ -765,7 +778,8 @@ class RegistrationCreateView(APIView):
                 original_vendor=vendor,
                 registered_by_account=request.user,
             )
-            pending_dev.set_imei(d["imei"])
+            if d["imei"]:
+                pending_dev.set_imei(d["imei"])
             pending_dev.auth_token_hash = Device.hash_token(secrets.token_urlsafe(32))
             pending_dev.save()
 
@@ -942,6 +956,12 @@ class EnrollmentQRView(APIView):
         if not can_access_enrollment(request.user, session):
             log_event(None, "UNAUTHORIZED_ACCESS_ATTEMPT", f"enrollment_qr={session_id}", request=request)
             return Response({"error": "forbidden"}, status=status.HTTP_403_FORBIDDEN)
+        if not session.is_usable:
+            if session.status == EnrollmentSession.Status.PENDING and session.expires_at <= timezone.now():
+                session.status = EnrollmentSession.Status.EXPIRED
+                session.token_encrypted = ""
+                session.save(update_fields=["status", "token_encrypted"])
+            return Response({"error": "enrollment_session_not_usable"}, status=status.HTTP_409_CONFLICT)
         raw_token = session.get_raw_token()
         if not raw_token:
             return Response({"error": "enrollment_session_not_usable"}, status=status.HTTP_409_CONFLICT)
@@ -990,6 +1010,12 @@ class EnrollmentBatView(APIView):
         if not can_access_enrollment(request.user, session):
             log_event(None, "UNAUTHORIZED_ACCESS_ATTEMPT", f"enrollment_bat={session_id}", request=request)
             return Response({"error": "forbidden"}, status=status.HTTP_403_FORBIDDEN)
+        if not session.is_usable:
+            if session.status == EnrollmentSession.Status.PENDING and session.expires_at <= timezone.now():
+                session.status = EnrollmentSession.Status.EXPIRED
+                session.token_encrypted = ""
+                session.save(update_fields=["status", "token_encrypted"])
+            return Response({"error": "enrollment_session_not_usable"}, status=status.HTTP_409_CONFLICT)
         raw_token = session.get_raw_token()
         if not raw_token:
             return Response({"error": "enrollment_session_not_usable"}, status=status.HTTP_409_CONFLICT)
@@ -1011,56 +1037,67 @@ class EnrollmentBatView(APIView):
             "",
             "where adb >nul 2>nul",
             "if errorlevel 1 (",
-            "  echo [ERROR] ADB not found in PATH. Install Android Platform Tools.",
-            "  exit /b 1",
+            "  if exist \"%LOCALAPPDATA%\\Android\\Sdk\\platform-tools\\adb.exe\" (",
+            "    set \"PATH=%LOCALAPPDATA%\\Android\\Sdk\\platform-tools;%PATH%\"",
+            "  ) else (",
+            "    echo [ERROR] ADB not found in PATH. Install Android Platform Tools.",
+            "    goto :fail",
+            "  )",
             ")",
             "",
             "for /f \"delims=\" %%S in ('adb get-state 2^>^&1') do set ADB_STATE=%%S",
             "if /i not \"!ADB_STATE!\"==\"device\" (",
             "  echo [ERROR] Device not ready. Current state: !ADB_STATE!",
-            "  echo Ensure USB cable is connected and USB Debugging prompt is accepted.",
-            "  exit /b 1",
+            "  echo Ensure USB cable is connected, USB Debugging is ON, and RSA prompt is accepted.",
+            "  goto :fail",
             ")",
             "",
             "for /f \"delims=\" %%V in ('adb shell getprop ro.build.version.sdk 2^>nul') do set SDK_VER=%%V",
             "echo Detected Android SDK: !SDK_VER!",
             "",
-            "adb shell dumpsys account | findstr /i \"Account {\" >nul 2>nul",
+            "adb shell dumpsys account | findstr /i /c:\"Account {\" >nul 2>nul",
             "if not errorlevel 1 (",
             "  echo [ERROR] Existing user accounts detected on device.",
             "  echo Remove all Google/Samsung accounts or factory reset before Device Owner setup.",
-            "  exit /b 1",
+            "  goto :fail",
             ")",
             "",
             "adb shell pm path com.akdevicelock.dpc >nul 2>nul",
             "if errorlevel 1 (",
             f"  echo [INFO] Installing AK DeviceLock APK from {apk_url} ...",
             f"  curl -fsSL -o \"%TEMP%\\akdevicelock_{session.id}.apk\" \"{apk_url}\"",
-            f"  if errorlevel 1 ( echo [ERROR] Failed to download APK. & exit /b 1 )",
-            f"  adb install -r \"%TEMP%\\akdevicelock_{session.id}.apk\"",
-            "  if errorlevel 1 ( echo [ERROR] APK install failed. Disable Auto Blocker and retry. & exit /b 1 )",
+            f"  if errorlevel 1 ( echo [ERROR] Failed to download APK. & goto :fail )",
+            f"  adb install -r \"%TEMP%\\akdevicelock_{session.id}.apk\" || adb install --no-streaming -r \"%TEMP%\\akdevicelock_{session.id}.apk\"",
+            "  if errorlevel 1 ( echo [ERROR] APK install failed. Disable Auto Blocker and retry. & goto :fail )",
             ")",
             "",
             "adb shell dpm set-device-owner com.akdevicelock.dpc/.deviceadmin.AkDeviceAdminReceiver",
             "if errorlevel 1 (",
             "  echo [ERROR] dpm set-device-owner failed. Device Owner was NOT granted.",
-            "  exit /b 1",
+            "  goto :fail",
             ")",
             "",
             "adb shell dpm list-owners | findstr /i \"com.akdevicelock.dpc\" >nul 2>nul",
             "if errorlevel 1 (",
             "  echo [ERROR] Verification failed: com.akdevicelock.dpc is not listed as Device Owner.",
-            "  exit /b 1",
+            "  goto :fail",
             ")",
             "",
             f"adb shell am start -n com.akdevicelock.dpc/.status.MainActivity --es server_url \"{base}\" --es enrollment_key \"{raw_token}\"",
             "if errorlevel 1 (",
             "  echo [ERROR] Failed to launch AK DeviceLock with session credentials.",
-            "  exit /b 1",
+            "  goto :fail",
             ")",
             "",
             "echo [SUCCESS] Device Owner verified and AK DeviceLock launched for registration.",
+            "echo.",
+            "pause",
             "exit /b 0",
+            "",
+            ":fail",
+            "echo.",
+            "pause",
+            "exit /b 1",
             "",
         ])
         if not session.bat_downloaded:

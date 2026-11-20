@@ -168,6 +168,39 @@ class RegistrationEnrollmentCommandWorkflowTests(TestCase):
         self.assertEqual(va.post(f"/api/v1/enrollment/{sid2}/cancel/").status_code, 200)
         self.assertEqual(va.get("/api/v1/entitlements/balance/").data["available"], 5)
 
+        # Used & released enrollment key cannot be reused or re-downloaded
+        fresh_reg = va.post("/api/v1/registrations/", {
+            "brand": "Samsung", "model": "SM-X115", "android_version": "16",
+            "enrollment_method": "ADB_16",
+        }, format="json")
+        self.assertEqual(fresh_reg.status_code, 201)
+        fsid = fresh_reg.data["enrollment_session"]["id"]
+        ftok = fresh_reg.data["enrollment_token"]
+        r1 = APIClient().post(
+            "/api/v1/devices/register/",
+            {"device_identifier": "sm-x115-rel-1"},
+            HTTP_X_ENROLLMENT_TOKEN=ftok,
+            format="json",
+        )
+        self.assertEqual(r1.status_code, 201)
+        dev_id = r1.data["device_id"]
+        dev_tok = r1.data["device_token"]
+        rel = va.post(f"/api/v1/devices/{dev_id}/release/", {}, format="json")
+        self.assertIn(rel.status_code, (200, 201))
+        cmd_id = rel.data["command_id"]
+        dev_client = APIClient()
+        dev_client.credentials(HTTP_AUTHORIZATION="Device " + dev_tok)
+        self.assertEqual(dev_client.post("/api/v1/commands/acknowledge/", {"command_id": cmd_id, "success": True, "result": "released"}, format="json").status_code, 200)
+        # Reusing the same token after release must be rejected, and .bat download must be 409
+        r2 = APIClient().post(
+            "/api/v1/devices/register/",
+            {"device_identifier": "sm-x115-rel-2"},
+            HTTP_X_ENROLLMENT_TOKEN=ftok,
+            format="json",
+        )
+        self.assertEqual(r2.status_code, 403)
+        self.assertEqual(va.get(f"/api/v1/enrollment/{fsid}/bat/").status_code, 409)
+
     def test_31_to_36_offline_pending_states_ack_and_append_only_audit(self):
         va = self._auth("wf_ven_a")
         vb = self._auth("wf_ven_b")

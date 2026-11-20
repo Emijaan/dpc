@@ -375,6 +375,8 @@ def panel_qr(request):
         session = get_object_or_404(EnrollmentSession, pk=session_id)
         if not can_access_enrollment(request.user, session):
             return HttpResponseForbidden("Enrollment session is outside your ownership boundary.")
+        if not session.is_usable:
+            return HttpResponse("Enrollment session already used or expired. Create a new one.", status=409)
         session_key = session.get_raw_token()
         if not session_key:
             return HttpResponse("Enrollment session already used or expired. Create a new one.", status=409)

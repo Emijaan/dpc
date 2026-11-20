@@ -46,11 +46,15 @@ class MainActivity : Activity() {
 
     private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
 
-    override fun onResume() {
-        super.onResume()
-        renderedKey = ""
-        val extraUrl = intent?.getStringExtra("server_url")
-        val extraKey = intent?.getStringExtra("enrollment_key")
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        applyLaunchIntent(intent)
+    }
+
+    private fun applyLaunchIntent(launchIntent: Intent?) {
+        val extraUrl = launchIntent?.getStringExtra("server_url")
+        val extraKey = launchIntent?.getStringExtra("enrollment_key")
         if (!extraUrl.isNullOrBlank() && !extraKey.isNullOrBlank()) {
             AppState(this).apply {
                 if (!isRegistered) {
@@ -58,10 +62,20 @@ class MainActivity : Activity() {
                     pendingEnrollmentKey = extraKey
                 }
             }
+            launchIntent.removeExtra("enrollment_key")
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        renderedKey = ""
+        applyLaunchIntent(intent)
         EnrollmentProtection.enforce(this)
         AkDeviceAdminReceiver.ensureDefaultsAndStart(this)
-        if (AppState(this).isRegistered) CommandPollService.start(this)
+        val state = AppState(this)
+        if (state.isRegistered || state.pendingEnrollmentKey.isNotBlank()) {
+            CommandPollService.start(this)
+        }
         handler.post(refresh)
     }
 

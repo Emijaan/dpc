@@ -10,7 +10,6 @@ interface RegResponse {
 }
 
 export function AddDevicePage() {
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [customerName, setCustomerName] = useState("");
   const [customerMobile, setCustomerMobile] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
@@ -34,9 +33,30 @@ export function AddDevicePage() {
     else setMethod("QR_9_15");
   }
 
-  async function createPending() {
+  function resetForm() {
+    setCustomerName("");
+    setCustomerMobile("");
+    setCustomerEmail("");
+    setBrand("");
+    setModel("");
+    setImei("");
+    setAndroidVersion("14");
+    setMethod("QR_9_15");
+    setReg(null);
+    setTestDpcSvg("");
+    setAkdlSvg("");
+    setLiveStatus("PENDING");
+    setAdbPrereqs(false);
+    setErr("");
+  }
+
+  async function createPending(e: React.FormEvent) {
+    e.preventDefault();
     setErr("");
     setBusy(true);
+    setTestDpcSvg("");
+    setAkdlSvg("");
+    setLiveStatus("PENDING");
     try {
       const r = await api<RegResponse>("/api/v1/registrations/", {
         method: "POST",
@@ -52,7 +72,6 @@ export function AddDevicePage() {
         }),
       });
       setReg(r);
-      setStep(4);
       if (method === "QR_9_15") {
         const major = parseInt(androidVersion.split(".")[0], 10);
         if (!Number.isNaN(major) && major <= 11) {
@@ -64,7 +83,7 @@ export function AddDevicePage() {
         }
       }
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Registration validation failed");
+      setErr(e instanceof Error ? e.message : "Registration failed");
     } finally {
       setBusy(false);
     }
@@ -86,7 +105,7 @@ export function AddDevicePage() {
   }
 
   useEffect(() => {
-    if (step !== 4 || !reg || liveStatus === "USED") return;
+    if (!reg || liveStatus === "USED") return;
     const timer = setInterval(async () => {
       try {
         const s = await api<{ status: string }>(`/api/v1/enrollment/${reg.enrollment_session.id}/status/`);
@@ -96,84 +115,53 @@ export function AddDevicePage() {
       }
     }, 5000);
     return () => clearInterval(timer);
-  }, [step, reg, liveStatus]);
+  }, [reg, liveStatus]);
 
   return (
     <div className="max-w-3xl space-y-5">
       <div>
         <h1 className="text-xl font-semibold text-slate-900">Add New Device</h1>
-        <p className="text-xs text-slate-500">No entitlement is consumed until the device finishes enrollment</p>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        {["1. Customer", "2. Device", "3. Review", "4. Enroll"].map((lbl, idx) => {
-          const n = (idx + 1) as 1 | 2 | 3 | 4;
-          return (
-            <span
-              key={lbl}
-              className={`px-3 py-1 rounded-full text-xs font-medium border ${
-                step === n
-                  ? "bg-indigo-50 text-indigo-700 border-indigo-200"
-                  : step > n
-                  ? "bg-green-50 text-green-700 border-green-200"
-                  : "bg-white text-slate-500 border-slate-200"
-              }`}
-            >
-              {lbl}
-            </span>
-          );
-        })}
+        <p className="text-xs text-slate-500">All fields are optional. No entitlement is consumed until the device finishes enrollment.</p>
       </div>
 
       {err && <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-xs">{err}</div>}
 
-      {step === 1 && (
-        <div className="bg-white border border-slate-200 rounded-lg p-5 space-y-4">
-          <h2 className="text-sm font-semibold">Step 1 — Customer Details</h2>
+      <form onSubmit={createPending} className="bg-white border border-slate-200 rounded-lg p-5 space-y-5">
+        <div className="space-y-3">
+          <h2 className="text-sm font-semibold text-slate-800">Customer Details (Optional)</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-slate-600 mb-1">Customer Full Name *</label>
+              <label className="block text-xs text-slate-600 mb-1">Customer Full Name</label>
               <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
             </div>
             <div>
-              <label className="block text-xs text-slate-600 mb-1">Mobile Number *</label>
+              <label className="block text-xs text-slate-600 mb-1">Mobile Number</label>
               <input value={customerMobile} onChange={(e) => setCustomerMobile(e.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-xs text-slate-600 mb-1">Email Address *</label>
+              <label className="block text-xs text-slate-600 mb-1">Email Address</label>
               <input type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
             </div>
           </div>
-          <div className="flex justify-end">
-            <button
-              disabled={!customerName.trim() || !customerMobile.trim() || !customerEmail.trim()}
-              onClick={() => setStep(2)}
-              className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium disabled:opacity-50"
-            >
-              Continue
-            </button>
-          </div>
         </div>
-      )}
 
-      {step === 2 && (
-        <div className="bg-white border border-slate-200 rounded-lg p-5 space-y-4">
-          <h2 className="text-sm font-semibold">Step 2 — Device Details</h2>
+        <div className="border-t border-slate-200 pt-4 space-y-3">
+          <h2 className="text-sm font-semibold text-slate-800">Device Details (Optional)</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-slate-600 mb-1">Mobile Brand *</label>
+              <label className="block text-xs text-slate-600 mb-1">Mobile Brand</label>
               <input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="Samsung / vivo" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
             </div>
             <div>
-              <label className="block text-xs text-slate-600 mb-1">Mobile Model *</label>
+              <label className="block text-xs text-slate-600 mb-1">Mobile Model</label>
               <input value={model} onChange={(e) => setModel(e.target.value)} placeholder="A15 / 1902" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
             </div>
             <div>
-              <label className="block text-xs text-slate-600 mb-1">IMEI Number (15 digits) *</label>
+              <label className="block text-xs text-slate-600 mb-1">IMEI Number (15 digits)</label>
               <input value={imei} onChange={(e) => setImei(e.target.value)} placeholder="490154203237518" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
             </div>
             <div>
-              <label className="block text-xs text-slate-600 mb-1">Android Version *</label>
+              <label className="block text-xs text-slate-600 mb-1">Android Version</label>
               <select value={androidVersion} onChange={(e) => onVersionChange(e.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
                 <option value="9">Android 9</option>
                 <option value="10">Android 10</option>
@@ -189,44 +177,27 @@ export function AddDevicePage() {
           <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-xs text-indigo-900">
             Selected enrollment method: <b>{method === "ADB_16" ? "Android 16 USB/ADB BAT Provisioning" : "Android 9–15 Guided QR Provisioning"}</b>
           </div>
-          <div className="flex justify-between">
-            <button onClick={() => setStep(1)} className="px-4 py-2 rounded-lg border border-slate-300 text-sm">Back</button>
-            <button
-              disabled={!brand.trim() || !model.trim() || !imei.trim()}
-              onClick={() => setStep(3)}
-              className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium disabled:opacity-50"
-            >
-              Continue
-            </button>
-          </div>
         </div>
-      )}
 
-      {step === 3 && (
-        <div className="bg-white border border-slate-200 rounded-lg p-5 space-y-4">
-          <h2 className="text-sm font-semibold">Step 3 — Review Pending Registration</h2>
-          <div className="text-xs space-y-1.5 bg-slate-50 border border-slate-200 rounded-lg p-3">
-            <div><b>Customer:</b> {customerName} · {customerMobile} · {customerEmail}</div>
-            <div><b>Device:</b> {brand} {model} · IMEI {imei} · Android {androidVersion}</div>
-            <div><b>Method:</b> {method}</div>
-          </div>
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-900">
-            One entitlement will be consumed only after the physical device authenticates and completes registration.
-          </div>
-          <div className="flex justify-between">
-            <button onClick={() => setStep(2)} className="px-4 py-2 rounded-lg border border-slate-300 text-sm">Back</button>
-            <button disabled={busy} onClick={createPending} className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium disabled:opacity-50">
-              {busy ? "Creating..." : "Create Pending Registration"}
+        <div className="flex items-center justify-between pt-1">
+          {reg ? (
+            <button type="button" onClick={resetForm} className="px-4 py-2 rounded-lg border border-slate-300 text-sm">
+              Reset Form
             </button>
-          </div>
+          ) : (
+            <span className="text-xs text-slate-500">One entitlement is consumed only after the device completes enrollment.</span>
+          )}
+          <button type="submit" disabled={busy} className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium disabled:opacity-50">
+            {busy ? "Creating..." : "Create Registration & Generate Enrollment"}
+          </button>
         </div>
-      )}
+      </form>
 
-      {step === 4 && reg && (
+      {reg && (
         <div className="bg-white border border-slate-200 rounded-lg p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-sm font-semibold">Step 4 — Enroll Device ({reg.registration_reference})</h2>
+              <h2 className="text-sm font-semibold">Enroll Device ({reg.registration_reference})</h2>
               <p className="text-xs text-slate-500">Expires at {new Date(reg.enrollment_session.expires_at).toLocaleTimeString()}</p>
             </div>
             <StatusBadge label={liveStatus === "USED" ? "REGISTERED" : liveStatus} />
@@ -262,7 +233,7 @@ export function AddDevicePage() {
                   <div className="text-xs font-semibold text-slate-800">
                     {testDpcSvg ? "Step B — AK DeviceLock Direct QR" : "AK DeviceLock 1-Step Direct QR (Android 9–11)"}
                   </div>
-                  <button onClick={generateAkQr} className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-medium">
+                  <button type="button" onClick={generateAkQr} className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-medium">
                     {akdlSvg ? "Refresh AK DeviceLock QR" : "Generate AK DeviceLock QR"}
                   </button>
                 </div>
@@ -282,6 +253,7 @@ export function AddDevicePage() {
                 I confirm all Android 16 Device Owner prerequisites are met
               </label>
               <button
+                type="button"
                 disabled={!adbPrereqs}
                 onClick={() => downloadAuthorizedFile(`/api/v1/enrollment/${reg.enrollment_session.id}/bat/`, `provision_${reg.registration_reference}.bat`)}
                 className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium disabled:opacity-40"
