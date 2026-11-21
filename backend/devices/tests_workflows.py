@@ -55,6 +55,18 @@ class RegistrationEnrollmentCommandWorkflowTests(TestCase):
     def test_guided_registration_validation_and_android9_15_qr_workflow(self):
         va = self._auth("wf_ven_a")
         vb = self._auth("wf_ven_b")
+        ra = self._auth("wf_ret_a")
+        su_client = self._auth("wf_su")
+
+        # All customer & device fields optional for every account role (Superuser, Retailer, Vendor)
+        for role_client in (su_client, ra, va):
+            blank_reg = role_client.post("/api/v1/registrations/", {}, format="json")
+            self.assertEqual(blank_reg.status_code, 201, blank_reg.data)
+            self.assertIsNone(blank_reg.data["customer"])
+            tok = blank_reg.data["enrollment_token"]
+            self.assertEqual(len(tok), 10)
+            self.assertTrue(tok.isdigit())
+            self.assertEqual(role_client.post(f"/api/v1/enrollment/{blank_reg.data['enrollment_session']['id']}/cancel/").status_code, 200)
 
         # Reject Android 8 and invalid IMEI Luhn checksum
         bad_v8 = va.post("/api/v1/registrations/", {

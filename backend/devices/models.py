@@ -1,5 +1,6 @@
 import hashlib
 import secrets
+import string
 import uuid
 from datetime import timedelta
 
@@ -341,6 +342,11 @@ class EnrollmentSession(models.Model):
     def hash_token(token: str) -> str:
         return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
+    @staticmethod
+    def generate_token() -> str:
+        """Generate a 10-digit numeric enrollment key."""
+        return "".join(secrets.choice(string.digits) for _ in range(10))
+
     @classmethod
     def create_session(
         cls,
@@ -356,9 +362,13 @@ class EnrollmentSession(models.Model):
         pending_device=None,
         ttl_seconds: int = 900,
     ) -> tuple["EnrollmentSession", str]:
-        raw_token = secrets.token_urlsafe(32)
+        while True:
+            raw_token = cls.generate_token()
+            token_hash = cls.hash_token(raw_token)
+            if not cls.objects.filter(token_hash=token_hash).exists():
+                break
         session = cls.objects.create(
-            token_hash=cls.hash_token(raw_token),
+            token_hash=token_hash,
             token_encrypted=encrypt_value(raw_token),
             superuser=superuser,
             retailer=retailer,

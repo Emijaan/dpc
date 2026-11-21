@@ -201,11 +201,27 @@ label.chk input{width:auto;margin:0}
   {% endif %}
   {% if "enrollments.manage" in perms %}
   <div class="card">
-    <h2>Create Enrollment Key &amp; Session</h2>
+    <h2>Create Enrollment Key &amp; Session (All Fields Optional)</h2>
     <form method="post" action="{% url 'panel_create_enrollment' %}">{% csrf_token %}
       <div class="form-row">
-        <input name="customer_name" placeholder="Customer Name (optional)">
+        <input name="customer_name" placeholder="Customer Full Name (optional)">
         <input name="customer_mobile" placeholder="Customer Mobile (optional)">
+        <input name="customer_email" type="email" placeholder="Customer Email (optional)">
+      </div>
+      <div class="form-row">
+        <input name="brand" placeholder="Mobile Brand (optional)">
+        <input name="model" placeholder="Mobile Model (optional)">
+        <input name="imei" placeholder="IMEI Number (optional)">
+        <select name="android_version">
+          <option value="14">Android 14 (optional)</option>
+          <option value="9">Android 9</option>
+          <option value="10">Android 10</option>
+          <option value="11">Android 11</option>
+          <option value="12">Android 12</option>
+          <option value="13">Android 13</option>
+          <option value="15">Android 15</option>
+          <option value="16">Android 16</option>
+        </select>
         <input name="intended_device_identifier" placeholder="Intended Device ID (optional)">
       </div>
       <button class="btn btn-blue">Generate Enrollment Key</button>

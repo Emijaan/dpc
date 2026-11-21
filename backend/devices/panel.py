@@ -1,4 +1,6 @@
 import json
+import secrets
+import uuid
 
 import segno
 from django.conf import settings
@@ -295,18 +297,57 @@ def panel_create_enrollment(request):
     su, retailer, vendor = get_ownership_context_for_creator(request.user)
     cust_name = request.POST.get("customer_name", "").strip()
     cust_mobile = request.POST.get("customer_mobile", "").strip()
+    cust_email = request.POST.get("customer_email", "").strip()
+    brand = request.POST.get("brand", "").strip()
+    model = request.POST.get("model", "").strip()
+    imei = request.POST.get("imei", "").strip()
+    android_version = request.POST.get("android_version", "").strip() or "14"
     intended_id = request.POST.get("intended_device_identifier", "").strip()
+    try:
+        major = int(android_version.split(".")[0])
+    except ValueError:
+        major = 14
+    method = Device.EnrollmentMethod.ADB_16 if major >= 16 else Device.EnrollmentMethod.QR_9_15
+    reg_ref = f"REG-{uuid.uuid4().hex[:8].upper()}"
+
     customer = None
-    if cust_name:
+    if cust_name or cust_mobile or cust_email:
         customer = Customer(
-            full_name=cust_name,
+            full_name=cust_name or cust_mobile or cust_email,
             retailer=retailer,
             vendor=vendor,
             registered_by_account=request.user,
         )
         if cust_mobile:
             customer.set_mobile(cust_mobile)
+        if cust_email:
+            customer.set_email(cust_email)
         customer.save()
+
+    pending_dev = None
+    if brand or model or imei or request.POST.get("android_version"):
+        pending_dev = Device(
+            device_identifier=f"pending-{uuid.uuid4().hex[:16]}",
+            registration_reference=reg_ref,
+            manufacturer=brand,
+            model=model,
+            android_version=android_version,
+            enrollment_method=method,
+            enrollment_status=Device.Enrollment.PENDING,
+            ownership_status=Device.OwnershipStatus.ACTIVE,
+            customer=customer,
+            superuser=su,
+            retailer=retailer,
+            vendor=vendor,
+            original_retailer=retailer,
+            original_vendor=vendor,
+            registered_by_account=request.user,
+        )
+        if imei:
+            pending_dev.set_imei(imei)
+        pending_dev.auth_token_hash = Device.hash_token(secrets.token_urlsafe(32))
+        pending_dev.save()
+
     session, raw_token = EnrollmentSession.create_session(
         created_by=request.user,
         superuser=su,
@@ -314,6 +355,9 @@ def panel_create_enrollment(request):
         vendor=vendor,
         customer=customer,
         intended_device_identifier=intended_id,
+        enrollment_method=method,
+        registration_reference=reg_ref,
+        pending_device=pending_dev,
     )
     log_event(None, "ENROLLMENT_SESSION_CREATED", f"session={session.id}", request=request)
     request.session["new_enrollment_token"] = raw_token

@@ -906,9 +906,9 @@ class EnrollmentListCreateView(APIView):
             customer = get_object_or_404(Customer, pk=d["customer_id"])
             if not can_access_customer(request.user, customer):
                 return Response({"error": "forbidden_customer"}, status=status.HTTP_403_FORBIDDEN)
-        elif d["customer_name"]:
+        elif d["customer_name"] or d["customer_mobile"] or d["customer_email"]:
             customer = Customer(
-                full_name=d["customer_name"],
+                full_name=d["customer_name"] or d["customer_mobile"] or d["customer_email"],
                 retailer=retailer,
                 vendor=vendor,
                 registered_by_account=request.user,

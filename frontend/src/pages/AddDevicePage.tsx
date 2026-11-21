@@ -28,7 +28,6 @@ export function AddDevicePage() {
   const [testDpcSvg, setTestDpcSvg] = useState("");
   const [akdlSvg, setAkdlSvg] = useState("");
   const [liveStatus, setLiveStatus] = useState("PENDING");
-  const [adbPrereqs, setAdbPrereqs] = useState(false);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -58,7 +57,6 @@ export function AddDevicePage() {
     setTestDpcSvg("");
     setAkdlSvg("");
     setLiveStatus("PENDING");
-    setAdbPrereqs(false);
     setErr("");
   }
 
@@ -96,29 +94,18 @@ export function AddDevicePage() {
           const qDirect = await api<{ svg: string }>(`/api/v1/enrollment/${r.enrollment_session.id}/qr/?step=akdl&format=json`);
           setAkdlSvg(qDirect.svg);
         } else {
-          const q1 = await api<{ svg: string }>(`/api/v1/enrollment/${r.enrollment_session.id}/qr/?step=testdpc&format=json`);
+          const [q1, q2] = await Promise.all([
+            api<{ svg: string }>(`/api/v1/enrollment/${r.enrollment_session.id}/qr/?step=testdpc&format=json`),
+            api<{ svg: string }>(`/api/v1/enrollment/${r.enrollment_session.id}/qr/?step=akdl&format=json`),
+          ]);
           setTestDpcSvg(q1.svg);
+          setAkdlSvg(q2.svg);
         }
       }
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Registration failed");
     } finally {
       setBusy(false);
-    }
-  }
-
-  async function generateAkQr() {
-    if (!reg) return;
-    setErr("");
-    try {
-      await api(`/api/v1/enrollment/${reg.enrollment_session.id}/complete/`, {
-        method: "POST",
-        body: JSON.stringify({ step: "test_dpc" }),
-      });
-      const q2 = await api<{ svg: string }>(`/api/v1/enrollment/${reg.enrollment_session.id}/qr/?step=akdl&format=json`);
-      setAkdlSvg(q2.svg);
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "QR generation failed");
     }
   }
 
@@ -139,12 +126,12 @@ export function AddDevicePage() {
     <div className="max-w-3xl space-y-5">
       <div>
         <h1 className="text-xl font-semibold text-slate-900">Add New Device</h1>
-        <p className="text-xs text-slate-500">All fields are optional. No entitlement is consumed until the device finishes enrollment.</p>
+        <p className="text-xs text-slate-500">All customer and mobile fields are optional. No entitlement is consumed until the device finishes enrollment.</p>
       </div>
 
       {err && <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-xs">{err}</div>}
 
-      <form onSubmit={createPending} className="bg-white border border-slate-200 rounded-lg p-5 space-y-5">
+      <form noValidate onSubmit={createPending} className="bg-white border border-slate-200 rounded-lg p-5 space-y-5">
         <div className="space-y-3">
           <h2 className="text-sm font-semibold text-slate-800">Customer Details (Optional)</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -164,7 +151,7 @@ export function AddDevicePage() {
         </div>
 
         <div className="border-t border-slate-200 pt-4 space-y-3">
-          <h2 className="text-sm font-semibold text-slate-800">Device Details (Optional)</h2>
+          <h2 className="text-sm font-semibold text-slate-800">Mobile / Device Details (Optional)</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-slate-600 mb-1">Mobile Brand</label>
@@ -193,7 +180,7 @@ export function AddDevicePage() {
             </div>
           </div>
           <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-xs text-indigo-900">
-            Selected enrollment method: <b>{method === "ADB_16" ? "Android 16 USB/ADB BAT Provisioning" : "Android 9–15 Guided QR Provisioning"}</b>
+            Selected enrollment method: <b>{method === "ADB_16" ? "Android 16 USB/ADB BAT Provisioning" : "Android 9–15 QR Provisioning"}</b>
           </div>
 
           <div className="border-t border-slate-200 pt-4 space-y-3">
@@ -302,27 +289,26 @@ export function AddDevicePage() {
                 <div className="text-indigo-800">If installing via Test DPC transfer or manual APK, paste this Session Key into AK DeviceLock on the phone before tapping Activate.</div>
               </div>
 
-              {testDpcSvg && (
-                <div className="border border-slate-200 rounded-lg p-4 space-y-2">
-                  <div className="text-xs font-semibold text-slate-800">Step A — Test DPC QR (Android 12–15 setup bridge)</div>
-                  <p className="text-xs text-slate-600">Factory-reset device, tap Welcome screen 6×, scan Test DPC QR, choose Work-Only, then disable Play Protect scan.</p>
-                  <div className="bg-white inline-block p-2 border border-slate-200 rounded" dangerouslySetInnerHTML={{ __html: testDpcSvg }} />
-                </div>
-              )}
-
-              <div className="border border-slate-200 rounded-lg p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="text-xs font-semibold text-slate-800">
-                    {testDpcSvg ? "Step B — AK DeviceLock Direct QR" : "AK DeviceLock 1-Step Direct QR (Android 9–11)"}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {testDpcSvg && (
+                  <div className="border border-slate-200 rounded-lg p-4 space-y-2">
+                    <div className="text-xs font-semibold text-slate-800">Test DPC QR (Android 12–15 setup bridge)</div>
+                    <p className="text-xs text-slate-600">Factory-reset device, tap Welcome screen 6×, scan Test DPC QR, choose Work-Only, then disable Play Protect scan.</p>
+                    <div className="bg-white inline-block p-2 border border-slate-200 rounded" dangerouslySetInnerHTML={{ __html: testDpcSvg }} />
                   </div>
-                  <button type="button" onClick={generateAkQr} className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-medium">
-                    {akdlSvg ? "Refresh AK DeviceLock QR" : "Generate AK DeviceLock QR"}
-                  </button>
-                </div>
-                <p className="text-xs text-slate-600">
-                  Factory-reset device, tap Welcome screen 6×, and scan this QR. It embeds the single-use Session Key automatically.
-                </p>
-                {akdlSvg && <div className="bg-white inline-block p-2 border border-slate-200 rounded" dangerouslySetInnerHTML={{ __html: akdlSvg }} />}
+                )}
+
+                {akdlSvg && (
+                  <div className="border border-slate-200 rounded-lg p-4 space-y-2">
+                    <div className="text-xs font-semibold text-slate-800">
+                      {testDpcSvg ? "AK DeviceLock Direct QR" : "AK DeviceLock 1-Step Direct QR (Android 9–11)"}
+                    </div>
+                    <p className="text-xs text-slate-600">
+                      Factory-reset device, tap Welcome screen 6×, and scan this QR. It embeds the single-use Session Key automatically.
+                    </p>
+                    <div className="bg-white inline-block p-2 border border-slate-200 rounded" dangerouslySetInnerHTML={{ __html: akdlSvg }} />
+                  </div>
+                )}
               </div>
             </div>
           ) : (
@@ -330,15 +316,10 @@ export function AddDevicePage() {
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-900">
                 <b>Android 16 Prerequisites:</b> Device must be factory-fresh with 0 Google/Samsung accounts, Samsung Auto Blocker OFF, Developer Options &amp; USB Debugging ON.
               </div>
-              <label className="flex items-center gap-2 text-xs text-slate-700">
-                <input type="checkbox" checked={adbPrereqs} onChange={(e) => setAdbPrereqs(e.target.checked)} />
-                I confirm all Android 16 Device Owner prerequisites are met
-              </label>
               <button
                 type="button"
-                disabled={!adbPrereqs}
                 onClick={() => downloadAuthorizedFile(`/api/v1/enrollment/${reg.enrollment_session.id}/bat/`, `provision_${reg.registration_reference}.bat`)}
-                className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium disabled:opacity-40"
+                className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium"
               >
                 Download Session .BAT File
               </button>
