@@ -380,3 +380,46 @@ class RegistrationEnrollmentCommandWorkflowTests(TestCase):
         self.assertEqual(sync_res.status_code, 200)
         self.assertEqual(sync_res.data["lock_screen"]["emi_amount"], "3000")
         self.assertEqual(sync_res.data["lock_screen"]["dealer_company"], "")
+
+    def test_frp_policy_and_agent_update_command(self):
+        su = self._auth("wf_su")
+        va = self._auth("wf_ven_a")
+
+        # Non-superuser cannot modify global FRP policy
+        self.assertEqual(
+            va.put("/api/v1/devices/frp-policy/", {"account_ids": "103948271645091827364"}, format="json").status_code,
+            403,
+        )
+        # Email address (instead of 21-digit numeric Google Account ID) is rejected
+        self.assertEqual(
+            su.put("/api/v1/devices/frp-policy/", {"account_ids": "admin@example.com"}, format="json").status_code,
+            400,
+        )
+        # Valid 21-digit IDs save cleanly
+        good_id = "103948271645091827364"
+        frp_save = su.put("/api/v1/devices/frp-policy/", {"account_ids": good_id}, format="json")
+        self.assertEqual(frp_save.status_code, 200, frp_save.data)
+        self.assertEqual(frp_save.data["effective_account_ids"], [good_id])
+
+        reg = va.post("/api/v1/registrations/", {"brand": "Samsung", "model": "A16"}, format="json").data
+        dc = APIClient()
+        dev_reg = dc.post(
+            "/api/v1/devices/register/",
+            {"device_identifier": "sam-frp-ota-01", "sdk_version": 35, "app_version": "0.10.0"},
+            HTTP_X_ENROLLMENT_TOKEN=reg["enrollment_token"],
+            format="json",
+        )
+        self.assertEqual(dev_reg.status_code, 201, dev_reg.data)
+        dev_id = dev_reg.data["device_id"]
+        dc.credentials(HTTP_AUTHORIZATION=f"Device {dev_reg.data['device_token']}")
+
+        # Pending & sync both deliver effective FRP account IDs
+        self.assertEqual(dc.get("/api/v1/commands/pending/").data["frp_accounts"], [good_id])
+        self.assertEqual(dc.post("/api/v1/devices/sync/", {}, format="json").data["frp_accounts"], [good_id])
+
+        # Operator queues signed DEVICE_UPDATE command
+        upd_cmd = va.post(f"/api/v1/devices/{dev_id}/update-agent/", {"reason": "ota"}, format="json")
+        self.assertEqual(upd_cmd.status_code, 201, upd_cmd.data)
+        cmds = dc.get("/api/v1/commands/pending/").data["commands"]
+        self.assertEqual(len(cmds), 1)
+        self.assertEqual(cmds[0]["command_type"], "DEVICE_UPDATE")

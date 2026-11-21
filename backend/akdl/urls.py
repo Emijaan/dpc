@@ -43,6 +43,8 @@ def api_docs(request):
             {"method": "POST", "path": "/api/v1/devices/{device_id}/camera/", "auth": "RBAC: devices.lock"},
             {"method": "POST", "path": "/api/v1/devices/{device_id}/gps-policy/", "auth": "RBAC: devices.lock"},
             {"method": "POST", "path": "/api/v1/devices/{device_id}/network-policy/", "auth": "RBAC: devices.lock"},
+            {"method": "POST", "path": "/api/v1/devices/{device_id}/update-agent/", "auth": "RBAC: devices.lock"},
+            {"method": "GET/PUT", "path": "/api/v1/devices/frp-policy/", "auth": "Superuser / RBAC: devices.view"},
             {"method": "POST", "path": "/api/v1/devices/{device_id}/release/", "auth": "RBAC: devices.release"},
             {"method": "POST", "path": "/api/v1/devices/{device_id}/keys/register/", "auth": "Device or keys.manage"},
             {"method": "POST", "path": "/api/v1/devices/{device_id}/keys/renew/", "auth": "Device or keys.manage"},

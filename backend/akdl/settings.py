@@ -76,6 +76,8 @@ PUBLIC_BASE_URL = os.environ.get("AKDL_PUBLIC_BASE_URL", "http://127.0.0.1:8000"
 APK_PATH = os.environ.get("AKDL_APK_PATH", str(BASE_DIR / "secrets" / "akdevicelock.apk"))
 # base64url (no padding) SHA-256 of the APK signing certificate.
 APK_CERT_SHA256 = os.environ.get("AKDL_APK_CERT_SHA256", "")
+# Comma-separated 21-digit numeric Google Account IDs enforced via Android Enterprise FRP policy (Android 11+).
+FRP_ACCOUNT_IDS = [a.strip() for a in os.environ.get("AKDL_FRP_ACCOUNT_IDS", "").split(",") if a.strip()]
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},

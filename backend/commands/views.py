@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from audit.models import log_event
 from commands.models import DeviceCommand
 from commands.services import expire_stale
-from devices.models import Device
+from devices.models import Device, effective_frp_accounts
 from devices.views import DeviceBase
 
 
@@ -35,6 +35,7 @@ class PendingView(DeviceBase):
             "server_time": int(timezone.now().timestamp()),
             "commands": [command_payload(c) for c in cmds],
             "lock_screen": device.lock_screen_info(),
+            "frp_accounts": effective_frp_accounts(device),
         })
 
 

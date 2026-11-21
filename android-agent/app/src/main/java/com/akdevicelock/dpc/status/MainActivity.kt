@@ -196,6 +196,7 @@ class MainActivity : Activity() {
         // Protection & Telemetry Card
         val resetBlocked = EnrollmentProtection.isFactoryResetBlocked(this)
         val adbBlocked = EnrollmentProtection.isUsbDebuggingBlocked(this)
+        val frpCount = EnrollmentProtection.frpAccountCount(this)
         val infoCard = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             background = cardBg("#111827", "#1F2937", 14)
@@ -219,6 +220,7 @@ class MainActivity : Activity() {
             text = """
                 Device Owner: ${if (owner) "YES (Full Managed)" else "NO (Transfer or QR required)"}
                 Factory Reset & OEM Unlock: ${if (resetBlocked) "BLOCKED" else "Not blocked"}
+                Enterprise FRP Policy: ${if (frpCount > 0) "ENABLED ($frpCount account(s))" else "Not configured"}
                 USB Debugging & File Transfer: ${if (adbBlocked) "BLOCKED (Anti-Flash)" else if (owner) "USB Data Blocked" else "Not blocked"}
                 App Uninstall: ${if (owner) "BLOCKED (Protected)" else "Not blocked"}
                 Registration: ${if (state.isRegistered) "REGISTERED" else "NOT REGISTERED"}

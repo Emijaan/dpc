@@ -102,6 +102,8 @@ export interface DeviceItem {
   camera_disabled: boolean;
   gps_forced_on: boolean;
   network_restricted: boolean;
+  frp_accounts?: string;
+  effective_frp_accounts?: string[];
   has_photo: boolean;
   last_photo_at: string | null;
   last_seen: string | null;

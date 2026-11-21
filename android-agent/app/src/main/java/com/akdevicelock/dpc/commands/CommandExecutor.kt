@@ -35,6 +35,7 @@ class CommandExecutor(private val context: Context, private val api: ApiClient) 
         val (ok, result) = execute(c)
         val acked = finish(c, ok, result)
         if (c.commandType == "DEVICE_RELEASE" && ok && acked) unlockEngine.finalizeRelease()
+        else if (c.commandType == "DEVICE_UPDATE" && ok) AppUpdater.installPreparedUpdate(context)
     }
 
     /** Returns true if the server accepted the acknowledgment. */
@@ -61,6 +62,7 @@ class CommandExecutor(private val context: Context, private val api: ApiClient) 
         "DEVICE_GPS_UNLOCK" -> TelemetryCollector.setGpsPolicy(context, false)
         "DEVICE_NET_LOCK" -> TelemetryCollector.setNetworkRestricted(context, true)
         "DEVICE_NET_UNLOCK" -> TelemetryCollector.setNetworkRestricted(context, false)
+        "DEVICE_UPDATE" -> AppUpdater.prepareUpdate(context, state.serverUrl)
         "DEVICE_RELEASE" -> unlockEngine.prepareRelease()
         else -> false to "unsupported"
     }

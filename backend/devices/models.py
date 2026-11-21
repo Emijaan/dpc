@@ -194,6 +194,7 @@ class Device(models.Model):
     camera_disabled = models.BooleanField(default=False)
     gps_forced_on = models.BooleanField(default=False)
     network_restricted = models.BooleanField(default=False)
+    frp_accounts = models.CharField(max_length=256, blank=True, default="")
     last_photo_b64 = models.TextField(blank=True, default="")
     last_photo_at = models.DateTimeField(null=True, blank=True)
     auth_token_hash = models.CharField(max_length=64, editable=False)
@@ -450,3 +451,50 @@ class DeviceOwnershipTransfer(models.Model):
 
     class Meta:
         ordering = ["-transferred_at"]
+
+
+def parse_frp_ids(raw: str | list[str]) -> list[str]:
+    import re
+    if isinstance(raw, list):
+        tokens = [str(x).strip() for x in raw]
+    else:
+        tokens = [t.strip() for t in re.split(r"[\s,;]+", raw or "") if t.strip()]
+    seen: list[str] = []
+    for t in tokens:
+        if not re.fullmatch(r"\d{21}", t):
+            raise ValidationError(
+                f"Invalid Google Account ID '{t}'. Enterprise FRP requires 21-digit numeric Google Account IDs (not email addresses)."
+            )
+        if t not in seen:
+            seen.append(t)
+    return seen
+
+
+class GlobalFrpSetting(models.Model):
+    """Singleton platform-wide Enterprise Factory Reset Protection (Android 11+) Google Account IDs."""
+
+    id = models.PositiveSmallIntegerField(primary_key=True, default=1, editable=False)
+    account_ids_csv = models.CharField(max_length=512, blank=True, default="")
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+def effective_frp_accounts(device: Device | None = None) -> list[str]:
+    if device is not None and (device.frp_accounts or "").strip():
+        try:
+            return parse_frp_ids(device.frp_accounts)
+        except ValidationError:
+            pass
+    try:
+        cfg = GlobalFrpSetting.objects.filter(pk=1).first()
+        if cfg and cfg.account_ids_csv.strip():
+            return parse_frp_ids(cfg.account_ids_csv)
+    except Exception:
+        pass
+    env_ids = getattr(settings, "FRP_ACCOUNT_IDS", []) or []
+    try:
+        return parse_frp_ids(list(env_ids))
+    except ValidationError:
+        return []

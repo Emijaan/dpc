@@ -139,6 +139,9 @@ class CommandPollService : Service() {
         val body = pending.body ?: throw IllegalStateException("bad response")
         state.serverOffset = body.getLong("server_time") - System.currentTimeMillis() / 1000
         state.updateLockScreenInfo(body.optJSONObject("lock_screen"))
+        if (state.updateFrpAccounts(body.optJSONArray("frp_accounts"))) {
+            EnrollmentProtection.enforce(this)
+        }
         val cmds = body.getJSONArray("commands")
         val executor = CommandExecutor(this, api)
         for (i in 0 until cmds.length()) {
@@ -165,6 +168,9 @@ class CommandPollService : Service() {
         sync.remove("device_identifier")
         val syncRes = api.sync(sync)
         syncRes.body?.optJSONObject("lock_screen")?.let { state.updateLockScreenInfo(it) }
+        syncRes.body?.optJSONArray("frp_accounts")?.let {
+            if (state.updateFrpAccounts(it)) EnrollmentProtection.enforce(this)
+        }
         state.lastSync = now
         state.connection = "online"
     }

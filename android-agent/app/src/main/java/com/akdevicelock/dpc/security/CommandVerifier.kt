@@ -25,6 +25,7 @@ object CommandVerifier {
         "DEVICE_GPS_UNLOCK",
         "DEVICE_NET_LOCK",
         "DEVICE_NET_UNLOCK",
+        "DEVICE_UPDATE",
         "DEVICE_RELEASE",
     )
     private const val MAX_TTL = 7L * 24 * 3600

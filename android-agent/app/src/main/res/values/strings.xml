@@ -1,4 +1,5 @@
 <resources>
     <string name="app_name">AK DeviceLock</string>
+    <string name="frp_account_ids" translatable="false"></string>
 </resources>
 

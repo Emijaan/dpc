@@ -16,7 +16,7 @@ from accounts.services import create_account_with_profile, delete_or_disable_acc
 from audit.models import log_event
 from commands.models import DeviceCommand
 from commands.services import create_command, expire_stale
-from devices.models import Customer, Device, EnrollmentSession
+from devices.models import Customer, Device, EnrollmentSession, effective_frp_accounts
 from devices.ownership import (
     can_access_device,
     can_access_enrollment,
@@ -53,6 +53,7 @@ ACTIONS = {
     "gps_unlock": (DeviceCommand.Type.GPS_UNLOCK, "devices.lock"),
     "net_lock": (DeviceCommand.Type.NETWORK_RESTRICT, "devices.lock"),
     "net_unlock": (DeviceCommand.Type.NETWORK_ALLOW, "devices.lock"),
+    "update_agent": (DeviceCommand.Type.UPDATE_AGENT, "devices.lock"),
     "release": (DeviceCommand.Type.RELEASE, "devices.release"),
 }
 
@@ -394,16 +395,20 @@ def panel_key_action(request, action):
 def provisioning_payload(base_url: str | None = None, enrollment_key: str | None = None) -> dict:
     """Direct 1-step Android QR provisioning payload (Device Owner)."""
     base = (base_url or settings.PUBLIC_BASE_URL).rstrip("/")
+    extras = {
+        "server_url": base,
+        "enrollment_key": enrollment_key if enrollment_key is not None else settings.ENROLLMENT_KEY,
+    }
+    frp_ids = effective_frp_accounts()
+    if frp_ids:
+        extras["frp_accounts"] = ",".join(frp_ids)
     return {
         "android.app.extra.PROVISIONING_DEVICE_ADMIN_COMPONENT_NAME": ADMIN_COMPONENT,
         "android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_DOWNLOAD_LOCATION": f"{base}/download/akdevicelock.apk",
         "android.app.extra.PROVISIONING_DEVICE_ADMIN_SIGNATURE_CHECKSUM": settings.APK_CERT_SHA256,
         "android.app.extra.PROVISIONING_LEAVE_ALL_SYSTEM_APPS_ENABLED": True,
         "android.app.extra.PROVISIONING_SKIP_ENCRYPTION": True,
-        "android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE": {
-            "server_url": base,
-            "enrollment_key": enrollment_key if enrollment_key is not None else settings.ENROLLMENT_KEY,
-        },
+        "android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE": extras,
     }
 
 

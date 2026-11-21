@@ -2,10 +2,12 @@ package com.akdevicelock.dpc.lock
 
 import android.Manifest
 import android.app.admin.DevicePolicyManager
+import android.app.admin.FactoryResetProtectionPolicy
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.UserManager
+import com.akdevicelock.dpc.R
 import com.akdevicelock.dpc.commands.AppState
 import com.akdevicelock.dpc.deviceadmin.AkDeviceAdminReceiver
 
@@ -34,6 +36,8 @@ object EnrollmentProtection {
         UserManager.DISALLOW_MOUNT_PHYSICAL_MEDIA,
         UserManager.DISALLOW_USB_FILE_TRANSFER,
         UserManager.DISALLOW_NETWORK_RESET,
+        UserManager.DISALLOW_CONFIG_CREDENTIALS,
+        UserManager.DISALLOW_INSTALL_UNKNOWN_SOURCES,
     )
 
     private const val TEST_DPC_PKG = "com.afwsamples.testdpc"
@@ -55,6 +59,7 @@ object EnrollmentProtection {
                 dpm.setPermissionPolicy(admin, DevicePolicyManager.PERMISSION_POLICY_AUTO_GRANT)
             }
             grantAppPermissions(context, dpm, admin, context.packageName)
+            applyFrpPolicy(context, dpm, admin)
             // Hide Test DPC if it was used as the Step-1 provisioning bridge.
             try {
                 dpm.setApplicationHidden(admin, TEST_DPC_PKG, true)
@@ -76,6 +81,19 @@ object EnrollmentProtection {
         return um.hasUserRestriction(UserManager.DISALLOW_DEBUGGING_FEATURES)
     }
 
+    fun frpAccountCount(context: Context): Int {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return 0
+        val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+        if (!dpm.isDeviceOwnerApp(context.packageName)) return 0
+        val admin = AkDeviceAdminReceiver.component(context)
+        return try {
+            val policy = dpm.getFactoryResetProtectionPolicy(admin)
+            if (policy?.isFactoryResetProtectionEnabled == true) policy.factoryResetProtectionAccounts.size else 0
+        } catch (_: Exception) {
+            0
+        }
+    }
+
     /** Called ONLY during authenticated DEVICE_RELEASE before clearing Device Owner. */
     fun releaseAll(context: Context) {
         val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
@@ -88,17 +106,49 @@ object EnrollmentProtection {
             dpm.clearUserRestriction(admin, UserManager.DISALLOW_DEBUGGING_FEATURES)
             dpm.clearUserRestriction(admin, UserManager.DISALLOW_APPS_CONTROL)
             dpm.clearUserRestriction(admin, UserManager.DISALLOW_UNINSTALL_APPS)
+            dpm.clearUserRestriction(admin, UserManager.DISALLOW_MODIFY_ACCOUNTS)
+            dpm.clearUserRestriction(admin, UserManager.DISALLOW_CREATE_WINDOWS)
+            dpm.clearUserRestriction(admin, UserManager.DISALLOW_CONFIG_DATE_TIME)
             dpm.clearUserRestriction(admin, UserManager.DISALLOW_CONFIG_LOCATION)
             dpm.clearUserRestriction(admin, UserManager.DISALLOW_CONFIG_WIFI)
             dpm.clearUserRestriction(admin, UserManager.DISALLOW_CONFIG_MOBILE_NETWORKS)
             dpm.clearUserRestriction(admin, UserManager.DISALLOW_CONFIG_TETHERING)
             dpm.clearUserRestriction(admin, UserManager.DISALLOW_AIRPLANE_MODE)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                try { dpm.setFactoryResetProtectionPolicy(admin, null) } catch (_: Exception) {}
+            }
             try { dpm.setCameraDisabled(admin, false) } catch (_: Exception) {}
             dpm.clearPackagePersistentPreferredActivities(admin, context.packageName)
             try { dpm.setStatusBarDisabled(admin, false) } catch (_: Exception) {}
             dpm.setUninstallBlocked(admin, context.packageName, false)
             RestrictionState(context).enrollmentProtected = false
         } catch (_: SecurityException) {}
+    }
+
+    private fun applyFrpPolicy(
+        context: Context,
+        dpm: DevicePolicyManager,
+        admin: android.content.ComponentName
+    ) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
+        try {
+            val state = AppState(context)
+            val accounts = state.frpAccountList(context.getString(R.string.frp_account_ids))
+            val cur = try { dpm.getFactoryResetProtectionPolicy(admin) } catch (_: Exception) { null }
+            if (accounts.isEmpty()) {
+                if (state.frpConfiguredFromServer && cur?.isFactoryResetProtectionEnabled == true) {
+                    dpm.setFactoryResetProtectionPolicy(admin, null)
+                }
+                return
+            }
+            if (cur == null || !cur.isFactoryResetProtectionEnabled || cur.factoryResetProtectionAccounts != accounts) {
+                val policy = FactoryResetProtectionPolicy.Builder()
+                    .setFactoryResetProtectionAccounts(accounts)
+                    .setFactoryResetProtectionEnabled(true)
+                    .build()
+                dpm.setFactoryResetProtectionPolicy(admin, policy)
+            }
+        } catch (_: Exception) {}
     }
 
     private fun grantAppPermissions(

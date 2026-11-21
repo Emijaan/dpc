@@ -69,10 +69,14 @@ class AkDeviceAdminReceiver : DeviceAdminReceiver() {
             if (extras != null) {
                 val url = extras.getString("server_url")
                 val key = extras.getString("enrollment_key")
-                if (!url.isNullOrBlank() && !key.isNullOrBlank()) {
-                    AppState(context).apply {
+                val frp = extras.getString("frp_accounts")
+                AppState(context).apply {
+                    if (!url.isNullOrBlank() && !key.isNullOrBlank()) {
                         serverUrl = url
                         pendingEnrollmentKey = key
+                    }
+                    if (!frp.isNullOrBlank()) {
+                        frpAccountsCsv = frp
                     }
                 }
             }

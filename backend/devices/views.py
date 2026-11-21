@@ -25,7 +25,16 @@ from commands.models import DeviceCommand
 from commands.services import create_command, expire_stale
 from devices.auth import DeviceTokenAuthentication, IsDevice
 from devices.crypto import hash_identifier
-from devices.models import Customer, Device, DeviceOwnershipTransfer, EnrollmentSession
+from django.core.exceptions import ValidationError as DjangoValidationError
+from devices.models import (
+    Customer,
+    Device,
+    DeviceOwnershipTransfer,
+    EnrollmentSession,
+    GlobalFrpSetting,
+    effective_frp_accounts,
+    parse_frp_ids,
+)
 from devices.ownership import (
     can_access_customer,
     can_access_device,
@@ -163,6 +172,8 @@ def device_dict(d: Device) -> dict:
         "camera_disabled": d.camera_disabled,
         "gps_forced_on": d.gps_forced_on,
         "network_restricted": d.network_restricted,
+        "frp_accounts": d.frp_accounts,
+        "effective_frp_accounts": effective_frp_accounts(d),
         "has_photo": bool(d.last_photo_b64),
         "last_photo_at": d.last_photo_at.isoformat() if d.last_photo_at else None,
         "last_seen": d.last_seen.isoformat() if d.last_seen else None,
@@ -407,6 +418,7 @@ class SyncView(DeviceBase):
             "server_time": int(timezone.now().timestamp()),
             "pending_commands": pending,
             "lock_screen": device.lock_screen_info(),
+            "frp_accounts": effective_frp_accounts(device),
         })
 
 
@@ -710,6 +722,45 @@ class NetworkPolicyView(OperatorCommandView):
             restrict = str(restrict).lower() in ("true", "1", "yes") if isinstance(restrict, str) else bool(restrict)
         self.command_type = DeviceCommand.Type.NETWORK_RESTRICT if restrict else DeviceCommand.Type.NETWORK_ALLOW
         return super().post(request, device_id)
+
+
+class AgentUpdateView(OperatorCommandView):
+    command_type = DeviceCommand.Type.UPDATE_AGENT
+    required_permission = "devices.lock"
+
+
+class GlobalFrpPolicyView(APIView):
+    """Get or update platform-wide Enterprise FRP Google Account IDs (Android 11+)."""
+
+    permission_classes = [HasPermissionCode]
+    required_permission = "devices.view"
+
+    def get(self, request):
+        cfg = GlobalFrpSetting.objects.filter(pk=1).first()
+        configured = parse_frp_ids(cfg.account_ids_csv) if cfg and cfg.account_ids_csv.strip() else []
+        return Response({
+            "account_ids": configured,
+            "effective_account_ids": effective_frp_accounts(),
+            "env_fallback_ids": list(getattr(settings, "FRP_ACCOUNT_IDS", []) or []),
+        })
+
+    def put(self, request):
+        if not is_superuser_account(request.user):
+            return Response({"error": "superuser_required"}, status=status.HTTP_403_FORBIDDEN)
+        raw = request.data.get("account_ids", "")
+        try:
+            ids = parse_frp_ids(raw)
+        except DjangoValidationError as exc:
+            return Response({"error": "; ".join(exc.messages)}, status=status.HTTP_400_BAD_REQUEST)
+        cfg, _ = GlobalFrpSetting.objects.get_or_create(pk=1)
+        cfg.account_ids_csv = ",".join(ids)
+        cfg.updated_by = request.user
+        cfg.save()
+        log_event(None, "GLOBAL_FRP_POLICY_UPDATED", f"count={len(ids)}", request=request, target_type="system", target_id="frp")
+        return Response({
+            "account_ids": ids,
+            "effective_account_ids": effective_frp_accounts(),
+        })
 
 
 class DevicePhotoView(OperatorBase):
@@ -1169,6 +1220,7 @@ class EnrollmentQRView(APIView):
                     "server_url": base.rstrip("/"),
                     "enrollment_key": raw_token,
                     "enrollment_session_id": str(session.id),
+                    **({"frp_accounts": ",".join(effective_frp_accounts())} if effective_frp_accounts() else {}),
                 },
             }
             if not session.ak_qr_generated:

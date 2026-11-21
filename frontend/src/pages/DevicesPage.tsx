@@ -53,7 +53,7 @@ export function DevicesPage() {
 
   async function runCommand(
     dev: DeviceItem,
-    action: "lock" | "unlock" | "sync-command" | "release" | "locate" | "capture-photo" | "camera" | "gps-policy" | "network-policy",
+    action: "lock" | "unlock" | "sync-command" | "release" | "locate" | "capture-photo" | "camera" | "gps-policy" | "network-policy" | "update-agent",
     payload?: Record<string, unknown>
   ) {
     setErr("");
@@ -312,6 +312,11 @@ export function DevicesPage() {
                 <StatusBadge label={selected.camera_disabled ? "CAMERA DISABLED" : "CAMERA ENABLED"} variant={selected.camera_disabled ? "danger" : "success"} />
                 <StatusBadge label={selected.gps_forced_on ? "GPS LOCKED ON" : "GPS UNLOCKED"} variant={selected.gps_forced_on ? "info" : "neutral"} />
                 <StatusBadge label={selected.network_restricted ? "NET SETTINGS LOCKED" : "NET SETTINGS OPEN"} variant={selected.network_restricted ? "warning" : "neutral"} />
+                <StatusBadge
+                  label={(selected.effective_frp_accounts?.length ?? 0) > 0 ? `FRP (${selected.effective_frp_accounts?.length})` : "FRP NOT SET"}
+                  variant={(selected.effective_frp_accounts?.length ?? 0) > 0 ? "success" : "warning"}
+                />
+                {selected.app_version && <StatusBadge label={`APK v${selected.app_version}`} variant="neutral" />}
               </div>
               {selected.has_photo && (
                 <div className="pt-1 flex items-center gap-2">
@@ -415,6 +420,12 @@ export function DevicesPage() {
                     className="px-2.5 py-1 rounded border border-slate-300 text-xs font-medium hover:bg-slate-50"
                   >
                     {selected.network_restricted ? "Unlock Network Settings" : "Lock Network Settings"}
+                  </button>
+                  <button
+                    onClick={() => runCommand(selected, "update-agent")}
+                    className="px-2.5 py-1 rounded bg-slate-900 text-white text-xs font-medium hover:bg-slate-800"
+                  >
+                    Push APK Update
                   </button>
                 </div>
               </div>

@@ -18,6 +18,7 @@ class DeviceCommand(models.Model):
         GPS_UNLOCK = "DEVICE_GPS_UNLOCK"
         NETWORK_RESTRICT = "DEVICE_NET_LOCK"
         NETWORK_ALLOW = "DEVICE_NET_UNLOCK"
+        UPDATE_AGENT = "DEVICE_UPDATE"
         RELEASE = "DEVICE_RELEASE"
 
     class Status(models.TextChoices):

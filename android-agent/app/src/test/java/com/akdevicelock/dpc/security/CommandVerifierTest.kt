@@ -82,6 +82,7 @@ class CommandVerifierTest {
             "DEVICE_GPS_UNLOCK",
             "DEVICE_NET_LOCK",
             "DEVICE_NET_UNLOCK",
+            "DEVICE_UPDATE",
         )) {
             val cmd = sign(baseCmd(devId, now, type = cmdType), kp.private)
             assertNull(verifyPureJvm(pubB64, cmd, devId, now))

@@ -49,6 +49,9 @@ class KioskRestrictionManager(private val context: Context) : LockManager {
             EnrollmentProtection.enforce(context)
             dpm.addUserRestriction(admin, UserManager.DISALLOW_APPS_CONTROL)
             dpm.addUserRestriction(admin, UserManager.DISALLOW_UNINSTALL_APPS)
+            dpm.addUserRestriction(admin, UserManager.DISALLOW_MODIFY_ACCOUNTS)
+            dpm.addUserRestriction(admin, UserManager.DISALLOW_CREATE_WINDOWS)
+            dpm.addUserRestriction(admin, UserManager.DISALLOW_CONFIG_DATE_TIME)
             val packages = linkedSetOf(context.packageName)
             dialerPackage()?.let { packages.add(it) }
             dpm.setLockTaskPackages(admin, packages.toTypedArray())
@@ -77,6 +80,9 @@ class KioskRestrictionManager(private val context: Context) : LockManager {
             dpm.setLockTaskPackages(admin, emptyArray())
             dpm.clearUserRestriction(admin, UserManager.DISALLOW_APPS_CONTROL)
             dpm.clearUserRestriction(admin, UserManager.DISALLOW_UNINSTALL_APPS)
+            dpm.clearUserRestriction(admin, UserManager.DISALLOW_MODIFY_ACCOUNTS)
+            dpm.clearUserRestriction(admin, UserManager.DISALLOW_CREATE_WINDOWS)
+            dpm.clearUserRestriction(admin, UserManager.DISALLOW_CONFIG_DATE_TIME)
             EnrollmentProtection.enforce(context)
             LockResult.Success
         } catch (e: SecurityException) {

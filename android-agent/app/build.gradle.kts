@@ -14,8 +14,8 @@ android {
         applicationId = "com.akdevicelock.dpc"
         minSdk = 28 // Vivo 1902 (Android 9) through Samsung Android 16
         targetSdk = 35
-        versionCode = 9
-        versionName = "0.9.0"
+        versionCode = 10
+        versionName = "0.10.0"
     }
     testOptions {
         unitTests.isReturnDefaultValues = true

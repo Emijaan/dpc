@@ -69,6 +69,40 @@ class AppState(context: Context) {
         get() = prefs.getString("dealer_company", "") ?: ""
         set(v) = prefs.edit().putString("dealer_company", v).apply()
 
+    var frpAccountsCsv: String
+        get() = prefs.getString("frp_accounts", "") ?: ""
+        set(v) = prefs.edit().putString("frp_accounts", v).apply()
+
+    var frpConfiguredFromServer: Boolean
+        get() = prefs.getBoolean("frp_server_configured", false)
+        set(v) = prefs.edit().putBoolean("frp_server_configured", v).apply()
+
+    fun updateFrpAccounts(arr: org.json.JSONArray?): Boolean {
+        if (arr == null) return false
+        val ids = mutableListOf<String>()
+        for (i in 0 until arr.length()) {
+            val s = arr.optString(i, "").trim()
+            if (isValidFrpAccountId(s) && s !in ids) ids.add(s)
+        }
+        val csv = ids.joinToString(",")
+        val changed = csv != frpAccountsCsv || !frpConfiguredFromServer
+        prefs.edit()
+            .putString("frp_accounts", csv)
+            .putBoolean("frp_server_configured", true)
+            .apply()
+        return changed
+    }
+
+    fun frpAccountList(defaultCsv: String): List<String> {
+        val raw = if (frpConfiguredFromServer) frpAccountsCsv else frpAccountsCsv.ifBlank { defaultCsv }
+        return raw.split(",").map { it.trim() }.filter { isValidFrpAccountId(it) }.distinct()
+    }
+
+    companion object {
+        fun isValidFrpAccountId(id: String): Boolean =
+            id.length == 21 && id.all { it in '0'..'9' }
+    }
+
     fun updateLockScreenInfo(obj: JSONObject?) {
         if (obj == null) return
         fun clean(key: String) = if (obj.isNull(key)) "" else obj.optString(key, "").trim()

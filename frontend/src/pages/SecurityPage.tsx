@@ -1,11 +1,16 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
+import { useAuth } from "../auth/AuthContext";
 import { ConfirmModal, StatusBadge } from "../components/UI";
 import type { AccountAccessItem, SigningKeyItem } from "../types";
 
 export function SecurityPage() {
+  const { user } = useAuth();
   const [keys, setKeys] = useState<SigningKeyItem[]>([]);
   const [accounts, setAccounts] = useState<AccountAccessItem[]>([]);
+  const [frpInput, setFrpInput] = useState("");
+  const [effectiveFrp, setEffectiveFrp] = useState<string[]>([]);
+  const [savingFrp, setSavingFrp] = useState(false);
   const [revokeId, setRevokeId] = useState<string | null>(null);
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
@@ -13,14 +18,37 @@ export function SecurityPage() {
   async function load() {
     setErr("");
     try {
-      const [k, a] = await Promise.all([
+      const [k, a, frp] = await Promise.all([
         api<{ signing_keys: SigningKeyItem[] }>("/api/v1/keys/"),
         api<{ accounts: AccountAccessItem[] }>("/api/v1/accounts/"),
+        api<{ account_ids: string[]; effective_account_ids: string[] }>("/api/v1/devices/frp-policy/"),
       ]);
       setKeys(k.signing_keys);
       setAccounts(a.accounts);
+      setFrpInput(frp.account_ids.join(", "));
+      setEffectiveFrp(frp.effective_account_ids);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Failed to load security data");
+    }
+  }
+
+  async function saveFrp(e: React.FormEvent) {
+    e.preventDefault();
+    setSavingFrp(true);
+    setErr("");
+    setMsg("");
+    try {
+      const r = await api<{ account_ids: string[]; effective_account_ids: string[] }>("/api/v1/devices/frp-policy/", {
+        method: "PUT",
+        body: JSON.stringify({ account_ids: frpInput }),
+      });
+      setFrpInput(r.account_ids.join(", "));
+      setEffectiveFrp(r.effective_account_ids);
+      setMsg("Enterprise FRP Google Account IDs saved. Enrolled Android 11+ devices apply this automatically on sync.");
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Failed to save FRP policy");
+    } finally {
+      setSavingFrp(false);
     }
   }
 
@@ -107,6 +135,36 @@ export function SecurityPage() {
         onCancel={() => setRevokeId(null)}
         onConfirm={() => (revokeId ? revokeKey(revokeId) : Promise.resolve())}
       />
+
+      <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-900">Enterprise Factory Reset Protection (FRP — Android 11+)</h2>
+            <p className="text-xs text-slate-500">
+              Locks devices to your company Google account(s) even after a hardware recovery wipe. Requires 21-digit numeric Google Account ID(s), comma-separated (not email addresses).
+            </p>
+          </div>
+          <StatusBadge label={effectiveFrp.length > 0 ? `ACTIVE (${effectiveFrp.length})` : "NOT CONFIGURED"} variant={effectiveFrp.length > 0 ? "success" : "warning"} />
+        </div>
+        <form onSubmit={saveFrp} className="flex flex-wrap gap-2">
+          <input
+            value={frpInput}
+            onChange={(e) => setFrpInput(e.target.value)}
+            disabled={user?.account_type !== "SUPERUSER"}
+            placeholder="e.g. 103948271645091827364"
+            className="flex-1 min-w-[260px] rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-mono disabled:bg-slate-50"
+          />
+          {user?.account_type === "SUPERUSER" && (
+            <button
+              type="submit"
+              disabled={savingFrp}
+              className="px-4 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-medium disabled:opacity-50"
+            >
+              {savingFrp ? "Saving..." : "Save FRP Policy"}
+            </button>
+          )}
+        </form>
+      </div>
 
       <div className="bg-white border border-slate-200 rounded-lg overflow-x-auto">
         <div className="px-4 py-3 border-b border-slate-200 font-semibold text-sm">All User Access (IP Address &amp; Device)</div>
