@@ -16,6 +16,7 @@ export function DevicesPage() {
   const [androidVersion, setAndroidVersion] = useState("");
   const [selected, setSelected] = useState<DeviceItem | null>(null);
   const [revealedImei, setRevealedImei] = useState("");
+  const [photoData, setPhotoData] = useState<{ photo_b64: string; captured_at: string | null } | null>(null);
   const [confirmAction, setConfirmAction] = useState<"lock" | "unlock" | "release" | null>(null);
   const [editLock, setEditLock] = useState({
     emi_amount: "",
@@ -50,13 +51,17 @@ export function DevicesPage() {
     load(1);
   }, [enrollmentStatus, restrictionStatus]);
 
-  async function runCommand(dev: DeviceItem, action: "lock" | "unlock" | "sync-command" | "release") {
+  async function runCommand(
+    dev: DeviceItem,
+    action: "lock" | "unlock" | "sync-command" | "release" | "locate" | "capture-photo" | "camera" | "gps-policy" | "network-policy",
+    payload?: Record<string, unknown>
+  ) {
     setErr("");
     setMsg("");
     try {
       const r = await api<{ status: string; device_online: boolean }>(`/api/v1/devices/${dev.id}/${action}/`, {
         method: "POST",
-        body: JSON.stringify({ reason: "operator_console" }),
+        body: JSON.stringify({ reason: "operator_console", ...(payload ?? {}) }),
       });
       setMsg(
         r.device_online
@@ -64,10 +69,22 @@ export function DevicesPage() {
           : `Device is offline. Command queued (${r.status}) — waiting for device acknowledgment.`
       );
       setConfirmAction(null);
-      setSelected(null);
+      if (action === "lock" || action === "unlock" || action === "release") {
+        setSelected(null);
+      }
       await load(page);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Command failed");
+    }
+  }
+
+  async function viewPhoto(dev: DeviceItem) {
+    setErr("");
+    try {
+      const r = await api<{ photo_b64: string; captured_at: string | null }>(`/api/v1/devices/${dev.id}/photo/`);
+      setPhotoData(r);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Failed to load photo");
     }
   }
 
@@ -83,6 +100,7 @@ export function DevicesPage() {
   function openManage(d: DeviceItem) {
     setSelected(d);
     setRevealedImei("");
+    setPhotoData(null);
     setEditLock({
       emi_amount: d.emi_amount || "",
       emi_due_date: d.emi_due_date || "",
@@ -263,7 +281,56 @@ export function DevicesPage() {
                   <button onClick={() => revealImei(selected)} className="text-indigo-600 font-medium hover:underline">Reveal (audited)</button>
                 )}
               </div>
+              <div>
+                <b>GPS Location:</b>{" "}
+                {selected.last_latitude !== null && selected.last_longitude !== null ? (
+                  <>
+                    <code>{selected.last_latitude.toFixed(5)}, {selected.last_longitude.toFixed(5)}</code>
+                    {selected.last_location_accuracy !== null && ` (±${Math.round(selected.last_location_accuracy)}m)`}
+                    {" · "}
+                    <a
+                      href={`https://maps.google.com/?q=${selected.last_latitude},${selected.last_longitude}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-indigo-600 font-medium hover:underline"
+                    >
+                      Open Map
+                    </a>
+                  </>
+                ) : (
+                  "Not reported yet"
+                )}
+              </div>
+              <div>
+                <b>Network:</b>{" "}
+                {selected.network_type || "Unknown"}
+                {selected.wifi_ssid ? ` · Wi-Fi: ${selected.wifi_ssid}` : ""}
+                {selected.network_operator ? ` · ${selected.network_operator}` : ""}
+                {selected.ip_address ? ` · IP: ${selected.ip_address}` : ""}
+              </div>
+              <div className="flex flex-wrap gap-2 pt-0.5">
+                <StatusBadge label={selected.camera_disabled ? "CAMERA DISABLED" : "CAMERA ENABLED"} variant={selected.camera_disabled ? "danger" : "success"} />
+                <StatusBadge label={selected.gps_forced_on ? "GPS LOCKED ON" : "GPS UNLOCKED"} variant={selected.gps_forced_on ? "info" : "neutral"} />
+                <StatusBadge label={selected.network_restricted ? "NET SETTINGS LOCKED" : "NET SETTINGS OPEN"} variant={selected.network_restricted ? "warning" : "neutral"} />
+              </div>
+              {selected.has_photo && (
+                <div className="pt-1 flex items-center gap-2">
+                  <button type="button" onClick={() => viewPhoto(selected)} className="text-indigo-600 font-medium hover:underline">
+                    View Latest Camera Photo
+                  </button>
+                  {selected.last_photo_at && <span className="text-slate-400">({new Date(selected.last_photo_at).toLocaleString()})</span>}
+                </div>
+              )}
             </div>
+            {photoData?.photo_b64 && (
+              <div className="border border-slate-200 rounded-lg p-2 bg-slate-50 space-y-1">
+                <div className="flex justify-between items-center text-[11px] text-slate-500">
+                  <span>Captured {photoData.captured_at ? new Date(photoData.captured_at).toLocaleString() : ""}</span>
+                  <button type="button" onClick={() => setPhotoData(null)} className="text-slate-600 hover:underline">Hide</button>
+                </div>
+                <img src={`data:image/jpeg;base64,${photoData.photo_b64}`} alt="Device capture" className="max-h-48 rounded mx-auto" />
+              </div>
+            )}
             <form onSubmit={saveLockDetails} className="space-y-2 border-t border-slate-200 pt-3">
               <div className="text-xs font-semibold text-slate-700">
                 Lock-Screen EMI &amp; Dealer Details <span className="font-normal text-slate-400">(all optional)</span>
@@ -319,13 +386,37 @@ export function DevicesPage() {
               </div>
             </form>
             {selected.enrollment_status === "ENROLLED" && (
-              <div className="flex flex-wrap gap-2 pt-2">
-                <button onClick={() => setConfirmAction("lock")} className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-medium">Lock Device</button>
-                <button onClick={() => setConfirmAction("unlock")} className="px-3 py-1.5 rounded-lg bg-green-600 text-white text-xs font-medium">Unlock Device</button>
-                <button onClick={() => runCommand(selected, "sync-command")} className="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-medium">Sync</button>
-                {user?.permissions.includes("devices.release") && (
-                  <button onClick={() => setConfirmAction("release")} className="px-3 py-1.5 rounded-lg border border-red-300 text-red-700 text-xs font-medium">Release...</button>
-                )}
+              <div className="space-y-2 pt-2">
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => setConfirmAction("lock")} className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-medium">Lock Device</button>
+                  <button onClick={() => setConfirmAction("unlock")} className="px-3 py-1.5 rounded-lg bg-green-600 text-white text-xs font-medium">Unlock Device</button>
+                  <button onClick={() => runCommand(selected, "sync-command")} className="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-medium">Sync</button>
+                  <button onClick={() => runCommand(selected, "locate")} className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-medium">Get GPS</button>
+                  <button onClick={() => runCommand(selected, "capture-photo")} className="px-3 py-1.5 rounded-lg bg-sky-600 text-white text-xs font-medium">Capture Photo</button>
+                  {user?.permissions.includes("devices.release") && (
+                    <button onClick={() => setConfirmAction("release")} className="px-3 py-1.5 rounded-lg border border-red-300 text-red-700 text-xs font-medium">Release...</button>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => runCommand(selected, "camera", { disable: !selected.camera_disabled })}
+                    className="px-2.5 py-1 rounded border border-slate-300 text-xs font-medium hover:bg-slate-50"
+                  >
+                    {selected.camera_disabled ? "Enable Camera" : "Disable Camera"}
+                  </button>
+                  <button
+                    onClick={() => runCommand(selected, "gps-policy", { lock: !selected.gps_forced_on })}
+                    className="px-2.5 py-1 rounded border border-slate-300 text-xs font-medium hover:bg-slate-50"
+                  >
+                    {selected.gps_forced_on ? "Unlock GPS Setting" : "Force GPS On & Lock"}
+                  </button>
+                  <button
+                    onClick={() => runCommand(selected, "network-policy", { restrict: !selected.network_restricted })}
+                    className="px-2.5 py-1 rounded border border-slate-300 text-xs font-medium hover:bg-slate-50"
+                  >
+                    {selected.network_restricted ? "Unlock Network Settings" : "Lock Network Settings"}
+                  </button>
+                </div>
               </div>
             )}
           </div>

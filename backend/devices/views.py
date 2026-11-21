@@ -80,6 +80,33 @@ class DeviceInfoSerializer(serializers.Serializer):
 class SyncSerializer(DeviceInfoSerializer):
     device_identifier = serializers.CharField(required=False)
     restriction_status = serializers.ChoiceField(choices=Device.Restriction.choices, required=False)
+    latitude = serializers.FloatField(min_value=-90.0, max_value=90.0, required=False, allow_null=True)
+    longitude = serializers.FloatField(min_value=-180.0, max_value=180.0, required=False, allow_null=True)
+    location_accuracy = serializers.FloatField(min_value=0.0, max_value=100000.0, required=False, allow_null=True)
+    network_type = serializers.CharField(max_length=32, allow_blank=True, required=False)
+    wifi_ssid = serializers.CharField(max_length=64, allow_blank=True, required=False)
+    network_operator = serializers.CharField(max_length=64, allow_blank=True, required=False)
+    ip_address = serializers.CharField(max_length=64, allow_blank=True, required=False)
+    camera_disabled = serializers.BooleanField(required=False)
+    gps_forced_on = serializers.BooleanField(required=False)
+    network_restricted = serializers.BooleanField(required=False)
+
+
+class DevicePhotoUploadSerializer(serializers.Serializer):
+    photo_b64 = serializers.CharField(max_length=700000)
+
+    def validate_photo_b64(self, val):
+        import base64
+        cleaned = (val or "").strip()
+        if not cleaned:
+            raise serializers.ValidationError("Empty photo payload.")
+        try:
+            raw = base64.b64decode(cleaned, validate=True)
+        except Exception:
+            raise serializers.ValidationError("Invalid base64 image payload.")
+        if len(raw) > 512 * 1024:
+            raise serializers.ValidationError("Photo exceeds 512 KB limit.")
+        return cleaned
 
 
 INFO_FIELDS = ["manufacturer", "model", "android_version", "sdk_version", "app_version", "fcm_token"]
@@ -125,6 +152,19 @@ def device_dict(d: Device) -> dict:
         "dealer_name": d.dealer_name,
         "dealer_mobile": d.dealer_mobile,
         "dealer_company": d.dealer_company,
+        "last_latitude": d.last_latitude,
+        "last_longitude": d.last_longitude,
+        "last_location_accuracy": d.last_location_accuracy,
+        "last_location_at": d.last_location_at.isoformat() if d.last_location_at else None,
+        "network_type": d.network_type,
+        "wifi_ssid": d.wifi_ssid,
+        "network_operator": d.network_operator,
+        "ip_address": d.ip_address,
+        "camera_disabled": d.camera_disabled,
+        "gps_forced_on": d.gps_forced_on,
+        "network_restricted": d.network_restricted,
+        "has_photo": bool(d.last_photo_b64),
+        "last_photo_at": d.last_photo_at.isoformat() if d.last_photo_at else None,
         "last_seen": d.last_seen.isoformat() if d.last_seen else None,
         "registration_date": d.registration_date.isoformat() if d.registration_date else None,
         "released_at": d.released_at.isoformat() if d.released_at else None,
@@ -340,6 +380,16 @@ class SyncView(DeviceBase):
         for f in INFO_FIELDS:
             if f in data:
                 setattr(device, f, data[f])
+        for f in ("network_type", "wifi_ssid", "network_operator", "ip_address",
+                  "camera_disabled", "gps_forced_on", "network_restricted"):
+            if f in data:
+                setattr(device, f, data[f])
+        if data.get("latitude") is not None and data.get("longitude") is not None:
+            device.last_latitude = data["latitude"]
+            device.last_longitude = data["longitude"]
+            if data.get("location_accuracy") is not None:
+                device.last_location_accuracy = data["location_accuracy"]
+            device.last_location_at = timezone.now()
         if "restriction_status" in data and device.restriction_status not in (
             Device.Restriction.LOCK_PENDING,
             Device.Restriction.UNLOCK_PENDING,
@@ -375,6 +425,20 @@ class RenewTokenView(DeviceBase):
         device.save(update_fields=["auth_token_hash", "updated_at"])
         log_event(device, "CREDENTIAL_RENEWED")
         return Response({"device_token": token})
+
+
+class DevicePhotoUploadView(DeviceBase):
+    def post(self, request):
+        device = request.user.device
+        s = DevicePhotoUploadSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        now = timezone.now()
+        device.last_photo_b64 = s.validated_data["photo_b64"]
+        device.last_photo_at = now
+        device.touch()
+        device.save(update_fields=["last_photo_b64", "last_photo_at", "last_seen", "connection_status", "updated_at"])
+        log_event(device, "DEVICE_PHOTO_CAPTURED", f"bytes={len(device.last_photo_b64)}")
+        return Response({"status": "saved", "captured_at": now.isoformat()})
 
 
 class OperatorBase(APIView):
@@ -597,6 +661,68 @@ class SyncCommandView(OperatorCommandView):
 class StatusCommandView(OperatorCommandView):
     command_type = DeviceCommand.Type.STATUS
     required_permission = "devices.sync"
+
+
+class LocateView(OperatorCommandView):
+    command_type = DeviceCommand.Type.LOCATE
+    required_permission = "devices.sync"
+
+
+class CapturePhotoView(OperatorCommandView):
+    command_type = DeviceCommand.Type.CAPTURE_PHOTO
+    required_permission = "devices.lock"
+
+
+class CameraPolicyView(OperatorCommandView):
+    required_permission = "devices.lock"
+
+    def post(self, request, device_id):
+        disable = request.data.get("disable")
+        if disable is None:
+            disable = True
+        else:
+            disable = str(disable).lower() in ("true", "1", "yes") if isinstance(disable, str) else bool(disable)
+        self.command_type = DeviceCommand.Type.CAMERA_DISABLE if disable else DeviceCommand.Type.CAMERA_ENABLE
+        return super().post(request, device_id)
+
+
+class GpsPolicyView(OperatorCommandView):
+    required_permission = "devices.lock"
+
+    def post(self, request, device_id):
+        lock = request.data.get("lock")
+        if lock is None:
+            lock = True
+        else:
+            lock = str(lock).lower() in ("true", "1", "yes") if isinstance(lock, str) else bool(lock)
+        self.command_type = DeviceCommand.Type.GPS_FORCE_ON if lock else DeviceCommand.Type.GPS_UNLOCK
+        return super().post(request, device_id)
+
+
+class NetworkPolicyView(OperatorCommandView):
+    required_permission = "devices.lock"
+
+    def post(self, request, device_id):
+        restrict = request.data.get("restrict")
+        if restrict is None:
+            restrict = True
+        else:
+            restrict = str(restrict).lower() in ("true", "1", "yes") if isinstance(restrict, str) else bool(restrict)
+        self.command_type = DeviceCommand.Type.NETWORK_RESTRICT if restrict else DeviceCommand.Type.NETWORK_ALLOW
+        return super().post(request, device_id)
+
+
+class DevicePhotoView(OperatorBase):
+    required_permission = "devices.view"
+
+    def get(self, request, device_id):
+        device = self.get_device(request, device_id)
+        log_event(device, "PII_REVEALED", "photo", request=request)
+        return Response({
+            "device_id": str(device.id),
+            "photo_b64": device.last_photo_b64,
+            "captured_at": device.last_photo_at.isoformat() if device.last_photo_at else None,
+        })
 
 
 class TransferSerializer(serializers.Serializer):

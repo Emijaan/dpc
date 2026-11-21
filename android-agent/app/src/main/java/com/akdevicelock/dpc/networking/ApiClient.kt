@@ -37,6 +37,8 @@ class ApiClient(private val baseUrl: String, private val token: String? = null) 
         request("POST", "/api/v1/devices/register/", info, mapOf("X-Enrollment-Key" to enrollmentKey))
 
     fun sync(info: JSONObject) = request("POST", "/api/v1/devices/sync/", info)
+    fun uploadPhoto(photoB64: String) =
+        request("POST", "/api/v1/devices/photo/", JSONObject().put("photo_b64", photoB64))
     fun pending() = request("GET", "/api/v1/commands/pending/")
     fun renewToken() = request("POST", "/api/v1/devices/renew-token/", JSONObject())
     fun fetchPublicKeys() = request("GET", "/api/v1/keys/public/")

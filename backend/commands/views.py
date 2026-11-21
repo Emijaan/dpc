@@ -61,6 +61,18 @@ class AcknowledgeView(DeviceBase):
                 device.restriction_status = Device.Restriction.LOCKED
             elif cmd.command_type == DeviceCommand.Type.UNLOCK:
                 device.restriction_status = Device.Restriction.NONE
+            elif cmd.command_type == DeviceCommand.Type.CAMERA_DISABLE:
+                device.camera_disabled = True
+            elif cmd.command_type == DeviceCommand.Type.CAMERA_ENABLE:
+                device.camera_disabled = False
+            elif cmd.command_type == DeviceCommand.Type.GPS_FORCE_ON:
+                device.gps_forced_on = True
+            elif cmd.command_type == DeviceCommand.Type.GPS_UNLOCK:
+                device.gps_forced_on = False
+            elif cmd.command_type == DeviceCommand.Type.NETWORK_RESTRICT:
+                device.network_restricted = True
+            elif cmd.command_type == DeviceCommand.Type.NETWORK_ALLOW:
+                device.network_restricted = False
             elif cmd.command_type == DeviceCommand.Type.RELEASE:
                 device.restriction_status = Device.Restriction.NONE
                 device.enrollment_status = Device.Enrollment.RELEASED

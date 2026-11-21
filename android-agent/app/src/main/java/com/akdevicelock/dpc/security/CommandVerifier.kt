@@ -12,7 +12,21 @@ import java.util.UUID
 
 /** Validates a command against distributed public keys, revocation lists, expiry, and device binding. */
 object CommandVerifier {
-    val ALLOWED_TYPES = setOf("DEVICE_LOCK", "DEVICE_UNLOCK", "DEVICE_STATUS", "DEVICE_SYNC", "DEVICE_RELEASE")
+    val ALLOWED_TYPES = setOf(
+        "DEVICE_LOCK",
+        "DEVICE_UNLOCK",
+        "DEVICE_STATUS",
+        "DEVICE_SYNC",
+        "DEVICE_LOCATE",
+        "DEVICE_PHOTO",
+        "DEVICE_CAMERA_OFF",
+        "DEVICE_CAMERA_ON",
+        "DEVICE_GPS_ON",
+        "DEVICE_GPS_UNLOCK",
+        "DEVICE_NET_LOCK",
+        "DEVICE_NET_UNLOCK",
+        "DEVICE_RELEASE",
+    )
     private const val MAX_TTL = 7L * 24 * 3600
     private const val MAX_CLOCK_SKEW = 300L
 

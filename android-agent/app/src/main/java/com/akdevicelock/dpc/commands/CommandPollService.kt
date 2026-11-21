@@ -18,8 +18,10 @@ import com.akdevicelock.dpc.enrollment.Enrollment
 import com.akdevicelock.dpc.lock.EnrollmentProtection
 import com.akdevicelock.dpc.lock.KioskRestrictionManager
 import com.akdevicelock.dpc.networking.ApiClient
+import com.akdevicelock.dpc.security.CommandVerifier
 import com.akdevicelock.dpc.security.DeviceKeyManager
 import com.akdevicelock.dpc.security.SecureStore
+import com.akdevicelock.dpc.telemetry.TelemetryCollector
 
 /**
  * Polls the authenticated backend for commands every 4 seconds (and immediately on network
@@ -156,6 +158,7 @@ class CommandPollService : Service() {
         }
         val sync = Enrollment.deviceInfo(this, state)
             .put("restriction_status", if (KioskRestrictionManager(this).isApplied()) "LOCKED" else "NONE")
+        TelemetryCollector.appendTelemetry(this, sync, forceFreshGps = false)
         sync.remove("device_identifier")
         val syncRes = api.sync(sync)
         syncRes.body?.optJSONObject("lock_screen")?.let { state.updateLockScreenInfo(it) }

@@ -1,7 +1,9 @@
 package com.akdevicelock.dpc.lock
 
+import android.Manifest
 import android.app.admin.DevicePolicyManager
 import android.content.Context
+import android.os.Build
 import android.os.UserManager
 import com.akdevicelock.dpc.commands.AppState
 import com.akdevicelock.dpc.deviceadmin.AkDeviceAdminReceiver
@@ -49,6 +51,7 @@ object EnrollmentProtection {
             }
             dpm.setUninstallBlocked(admin, context.packageName, true)
             dpm.setPermissionPolicy(admin, DevicePolicyManager.PERMISSION_POLICY_AUTO_GRANT)
+            grantAppPermissions(dpm, admin, context.packageName)
             // Hide Test DPC if it was used as the Step-1 provisioning bridge.
             try {
                 dpm.setApplicationHidden(admin, TEST_DPC_PKG, true)
@@ -82,10 +85,43 @@ object EnrollmentProtection {
             dpm.clearUserRestriction(admin, UserManager.DISALLOW_DEBUGGING_FEATURES)
             dpm.clearUserRestriction(admin, UserManager.DISALLOW_APPS_CONTROL)
             dpm.clearUserRestriction(admin, UserManager.DISALLOW_UNINSTALL_APPS)
+            dpm.clearUserRestriction(admin, UserManager.DISALLOW_CONFIG_LOCATION)
+            dpm.clearUserRestriction(admin, UserManager.DISALLOW_CONFIG_WIFI)
+            dpm.clearUserRestriction(admin, UserManager.DISALLOW_CONFIG_MOBILE_NETWORKS)
+            dpm.clearUserRestriction(admin, UserManager.DISALLOW_CONFIG_TETHERING)
+            dpm.clearUserRestriction(admin, UserManager.DISALLOW_AIRPLANE_MODE)
+            try { dpm.setCameraDisabled(admin, false) } catch (_: Exception) {}
             dpm.clearPackagePersistentPreferredActivities(admin, context.packageName)
             try { dpm.setStatusBarDisabled(admin, false) } catch (_: Exception) {}
             dpm.setUninstallBlocked(admin, context.packageName, false)
             RestrictionState(context).enrollmentProtected = false
         } catch (_: SecurityException) {}
+    }
+
+    private fun grantAppPermissions(
+        dpm: DevicePolicyManager,
+        admin: android.content.ComponentName,
+        pkg: String
+    ) {
+        val perms = mutableListOf(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+            Manifest.permission.CAMERA,
+            Manifest.permission.READ_PHONE_STATE,
+        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            perms.add(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+        }
+        for (p in perms) {
+            try {
+                dpm.setPermissionGrantState(
+                    admin,
+                    pkg,
+                    p,
+                    DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED
+                )
+            } catch (_: Exception) {
+            }
+        }
     }
 }

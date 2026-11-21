@@ -45,6 +45,14 @@ ACTIONS = {
     "lock": (DeviceCommand.Type.LOCK, "devices.lock"),
     "unlock": (DeviceCommand.Type.UNLOCK, "devices.unlock"),
     "sync": (DeviceCommand.Type.SYNC, "devices.sync"),
+    "locate": (DeviceCommand.Type.LOCATE, "devices.sync"),
+    "photo": (DeviceCommand.Type.CAPTURE_PHOTO, "devices.lock"),
+    "camera_off": (DeviceCommand.Type.CAMERA_DISABLE, "devices.lock"),
+    "camera_on": (DeviceCommand.Type.CAMERA_ENABLE, "devices.lock"),
+    "gps_on": (DeviceCommand.Type.GPS_FORCE_ON, "devices.lock"),
+    "gps_unlock": (DeviceCommand.Type.GPS_UNLOCK, "devices.lock"),
+    "net_lock": (DeviceCommand.Type.NETWORK_RESTRICT, "devices.lock"),
+    "net_unlock": (DeviceCommand.Type.NETWORK_ALLOW, "devices.lock"),
     "release": (DeviceCommand.Type.RELEASE, "devices.release"),
 }
 

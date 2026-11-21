@@ -10,6 +10,14 @@ class DeviceCommand(models.Model):
         UNLOCK = "DEVICE_UNLOCK"
         STATUS = "DEVICE_STATUS"
         SYNC = "DEVICE_SYNC"
+        LOCATE = "DEVICE_LOCATE"
+        CAPTURE_PHOTO = "DEVICE_PHOTO"
+        CAMERA_DISABLE = "DEVICE_CAMERA_OFF"
+        CAMERA_ENABLE = "DEVICE_CAMERA_ON"
+        GPS_FORCE_ON = "DEVICE_GPS_ON"
+        GPS_UNLOCK = "DEVICE_GPS_UNLOCK"
+        NETWORK_RESTRICT = "DEVICE_NET_LOCK"
+        NETWORK_ALLOW = "DEVICE_NET_UNLOCK"
         RELEASE = "DEVICE_RELEASE"
 
     class Status(models.TextChoices):

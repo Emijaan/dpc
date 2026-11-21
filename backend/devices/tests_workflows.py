@@ -273,6 +273,41 @@ class RegistrationEnrollmentCommandWorkflowTests(TestCase):
         self.assertEqual(self._auth("wf_ret_a").get("/api/v1/dashboard/stats/").status_code, 200)
         self.assertEqual(va.get("/api/v1/dashboard/stats/").status_code, 200)
 
+        # GPS, Camera, and Network telemetry + policy endpoints
+        sync_tel = dc.post("/api/v1/devices/sync/", {
+            "latitude": 28.6139, "longitude": 77.2090, "location_accuracy": 12.5,
+            "network_type": "WIFI", "wifi_ssid": "OfficeNet", "network_operator": "Jio", "ip_address": "192.168.1.50",
+        }, format="json")
+        self.assertEqual(sync_tel.status_code, 200)
+        dev_obj = va.get(f"/api/v1/devices/{dev_id}/").data
+        self.assertAlmostEqual(dev_obj["last_latitude"], 28.6139, places=4)
+        self.assertEqual(dev_obj["network_type"], "WIFI")
+        self.assertEqual(dev_obj["wifi_ssid"], "OfficeNet")
+
+        import base64
+        sample_b64 = base64.b64encode(b"\xff\xd8\xff\xe0test-jpeg").decode()
+        self.assertEqual(dc.post("/api/v1/devices/photo/", {"photo_b64": sample_b64}, format="json").status_code, 200)
+        self.assertEqual(vb.get(f"/api/v1/devices/{dev_id}/photo/").status_code, 403)
+        photo_resp = va.get(f"/api/v1/devices/{dev_id}/photo/")
+        self.assertEqual(photo_resp.status_code, 200)
+        self.assertEqual(photo_resp.data["photo_b64"], sample_b64)
+
+        self.assertEqual(vb.post(f"/api/v1/devices/{dev_id}/locate/").status_code, 403)
+        self.assertEqual(va.post(f"/api/v1/devices/{dev_id}/locate/").status_code, 201)
+        self.assertEqual(va.post(f"/api/v1/devices/{dev_id}/capture-photo/").status_code, 201)
+        cam_off = va.post(f"/api/v1/devices/{dev_id}/camera/", {"disable": True}, format="json")
+        gps_on = va.post(f"/api/v1/devices/{dev_id}/gps-policy/", {"lock": True}, format="json")
+        net_lock = va.post(f"/api/v1/devices/{dev_id}/network-policy/", {"restrict": True}, format="json")
+        self.assertEqual(cam_off.status_code, 201)
+        self.assertEqual(gps_on.status_code, 201)
+        self.assertEqual(net_lock.status_code, 201)
+        for cid in (cam_off.data["command_id"], gps_on.data["command_id"], net_lock.data["command_id"]):
+            self.assertEqual(dc.post("/api/v1/commands/acknowledge/", {"command_id": cid, "success": True}, format="json").status_code, 200)
+        dev_after = Device.objects.get(pk=dev_id)
+        self.assertTrue(dev_after.camera_disabled)
+        self.assertTrue(dev_after.gps_forced_on)
+        self.assertTrue(dev_after.network_restricted)
+
     def test_optional_lock_screen_emi_and_dealer_fields(self):
         # 1. Registration with zero fields works cleanly (every input is optional)
         va = self._auth("wf_ven_a")

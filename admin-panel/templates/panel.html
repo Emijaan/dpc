@@ -87,7 +87,11 @@ label.chk input{width:auto;margin:0}
       <tr><th>Device</th><th>Customer</th><th>Owner</th><th>Status</th><th>Last Sync</th><th>Actions</th></tr>
       {% for r in rows %}
       <tr>
-        <td><b>{{ r.device.manufacturer }} {{ r.device.model }}</b><br><code>{{ r.device.device_identifier|slice:":14" }}</code></td>
+        <td>
+          <b>{{ r.device.manufacturer }} {{ r.device.model }}</b><br><code>{{ r.device.device_identifier|slice:":14" }}</code>
+          {% if r.device.last_latitude != None %}<br><small>GPS: {{ r.device.last_latitude|floatformat:5 }}, {{ r.device.last_longitude|floatformat:5 }}</small>{% endif %}
+          {% if r.device.network_type %}<br><small>Net: {{ r.device.network_type }}{% if r.device.wifi_ssid %} ({{ r.device.wifi_ssid }}){% endif %}{% if r.device.network_operator %} · {{ r.device.network_operator }}{% endif %}</small>{% endif %}
+        </td>
         <td>{{ r.device.customer.full_name|default:"-" }}</td>
         <td>{% if r.device.vendor %}{{ r.device.vendor.username }}{% elif r.device.retailer %}{{ r.device.retailer.username }}{% else %}Platform{% endif %}</td>
         <td>
@@ -101,6 +105,10 @@ label.chk input{width:auto;margin:0}
             {% if "devices.lock" in perms %}<form method="post" action="{% url 'panel_action' r.device.id 'lock' %}" style="display:inline" onsubmit="return confirm('Lock this device?')">{% csrf_token %}<button class="btn btn-lock">Lock</button></form>{% endif %}
             {% if "devices.unlock" in perms %}<form method="post" action="{% url 'panel_action' r.device.id 'unlock' %}" style="display:inline" onsubmit="return confirm('Unlock this device?')">{% csrf_token %}<button class="btn btn-unlock">Unlock</button></form>{% endif %}
             {% if "devices.sync" in perms %}<form method="post" action="{% url 'panel_action' r.device.id 'sync' %}" style="display:inline">{% csrf_token %}<button class="btn btn-sync">Sync</button></form>{% endif %}
+            {% if "devices.sync" in perms %}<form method="post" action="{% url 'panel_action' r.device.id 'locate' %}" style="display:inline">{% csrf_token %}<button class="btn btn-sync">GPS</button></form>{% endif %}
+            {% if "devices.lock" in perms %}<form method="post" action="{% url 'panel_action' r.device.id 'photo' %}" style="display:inline">{% csrf_token %}<button class="btn btn-sync">Photo</button></form>{% endif %}
+            {% if "devices.lock" in perms %}<form method="post" action="{% url 'panel_action' r.device.id 'camera_off' %}" style="display:inline">{% csrf_token %}<button class="btn btn-lock">Cam Off</button></form><form method="post" action="{% url 'panel_action' r.device.id 'camera_on' %}" style="display:inline">{% csrf_token %}<button class="btn btn-unlock">Cam On</button></form>{% endif %}
+            {% if "devices.lock" in perms %}<form method="post" action="{% url 'panel_action' r.device.id 'gps_on' %}" style="display:inline">{% csrf_token %}<button class="btn btn-sync">GPS Lock</button></form><form method="post" action="{% url 'panel_action' r.device.id 'net_lock' %}" style="display:inline">{% csrf_token %}<button class="btn btn-lock">Net Lock</button></form>{% endif %}
             {% if "devices.release" in perms %}<form method="post" action="{% url 'panel_action' r.device.id 'release' %}" style="display:inline" onsubmit="return confirm('Permanently release this device?')">{% csrf_token %}<button class="btn btn-rel">Release</button></form>{% endif %}
           {% endif %}
         </td>

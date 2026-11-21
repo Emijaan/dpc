@@ -68,6 +68,27 @@ class CommandVerifierTest {
     }
 
     @Test
+    fun telemetryAndPolicyCommandTypesPassVerification() {
+        val kp = generateKeyPair()
+        val pubB64 = Base64.getEncoder().encodeToString(kp.public.encoded)
+        val devId = UUID.randomUUID().toString()
+        val now = 1_700_000_000L
+        for (cmdType in listOf(
+            "DEVICE_LOCATE",
+            "DEVICE_PHOTO",
+            "DEVICE_CAMERA_OFF",
+            "DEVICE_CAMERA_ON",
+            "DEVICE_GPS_ON",
+            "DEVICE_GPS_UNLOCK",
+            "DEVICE_NET_LOCK",
+            "DEVICE_NET_UNLOCK",
+        )) {
+            val cmd = sign(baseCmd(devId, now, type = cmdType), kp.private)
+            assertNull(verifyPureJvm(pubB64, cmd, devId, now))
+        }
+    }
+
+    @Test
     fun rejectsUnauthorizedCommandType() {
         val kp = generateKeyPair()
         val pubB64 = Base64.getEncoder().encodeToString(kp.public.encoded)
