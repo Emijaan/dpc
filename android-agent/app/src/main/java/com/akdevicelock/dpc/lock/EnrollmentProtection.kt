@@ -3,6 +3,7 @@ package com.akdevicelock.dpc.lock
 import android.Manifest
 import android.app.admin.DevicePolicyManager
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.UserManager
 import com.akdevicelock.dpc.commands.AppState
@@ -50,8 +51,10 @@ object EnrollmentProtection {
                 dpm.addUserRestriction(admin, UserManager.DISALLOW_DEBUGGING_FEATURES)
             }
             dpm.setUninstallBlocked(admin, context.packageName, true)
-            dpm.setPermissionPolicy(admin, DevicePolicyManager.PERMISSION_POLICY_AUTO_GRANT)
-            grantAppPermissions(dpm, admin, context.packageName)
+            if (dpm.getPermissionPolicy(admin) != DevicePolicyManager.PERMISSION_POLICY_AUTO_GRANT) {
+                dpm.setPermissionPolicy(admin, DevicePolicyManager.PERMISSION_POLICY_AUTO_GRANT)
+            }
+            grantAppPermissions(context, dpm, admin, context.packageName)
             // Hide Test DPC if it was used as the Step-1 provisioning bridge.
             try {
                 dpm.setApplicationHidden(admin, TEST_DPC_PKG, true)
@@ -99,6 +102,7 @@ object EnrollmentProtection {
     }
 
     private fun grantAppPermissions(
+        context: Context,
         dpm: DevicePolicyManager,
         admin: android.content.ComponentName,
         pkg: String
@@ -114,12 +118,16 @@ object EnrollmentProtection {
         }
         for (p in perms) {
             try {
-                dpm.setPermissionGrantState(
-                    admin,
-                    pkg,
-                    p,
-                    DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED
-                )
+                if (context.checkSelfPermission(p) != PackageManager.PERMISSION_GRANTED &&
+                    dpm.getPermissionGrantState(admin, pkg, p) != DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED
+                ) {
+                    dpm.setPermissionGrantState(
+                        admin,
+                        pkg,
+                        p,
+                        DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED
+                    )
+                }
             } catch (_: Exception) {
             }
         }

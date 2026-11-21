@@ -30,6 +30,7 @@ import com.akdevicelock.dpc.telemetry.TelemetryCollector
 class CommandPollService : Service() {
     @Volatile private var running = false
     @Volatile private var pollThread: Thread? = null
+    private var lastLocationSyncMs = 0L
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -156,9 +157,11 @@ class CommandPollService : Service() {
                 api = ApiClient(state.serverUrl, newTok)
             }
         }
+        val includeLoc = now - lastLocationSyncMs >= LOCATION_SYNC_MS
         val sync = Enrollment.deviceInfo(this, state)
             .put("restriction_status", if (KioskRestrictionManager(this).isApplied()) "LOCKED" else "NONE")
-        TelemetryCollector.appendTelemetry(this, sync, forceFreshGps = false)
+        TelemetryCollector.appendTelemetry(this, sync, forceFreshGps = false, includeLocation = includeLoc)
+        if (includeLoc) lastLocationSyncMs = now
         sync.remove("device_identifier")
         val syncRes = api.sync(sync)
         syncRes.body?.optJSONObject("lock_screen")?.let { state.updateLockScreenInfo(it) }
@@ -190,6 +193,7 @@ class CommandPollService : Service() {
 
     companion object {
         private const val POLL_MS = 4_000L
+        private const val LOCATION_SYNC_MS = 300_000L
         private const val MAX_BACKOFF_MS = 30_000L
         private const val TOKEN_RENEW_MS = 7L * 24 * 3600 * 1000L
         private const val EXTRA_FORCE_SYNC = "force_sync"

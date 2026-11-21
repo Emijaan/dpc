@@ -132,7 +132,7 @@ object TelemetryCollector {
     }
 
     @Suppress("DEPRECATION")
-    fun collectNetwork(context: Context): NetworkInfo {
+    fun collectNetwork(context: Context, includeSsid: Boolean = true): NetworkInfo {
         val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val net = cm.activeNetwork
         val caps = net?.let { cm.getNetworkCapabilities(it) }
@@ -154,7 +154,7 @@ object TelemetryCollector {
         } catch (_: Exception) {
         }
         var ssid = ""
-        if (netType == "WIFI" &&
+        if (includeSsid && netType == "WIFI" &&
             (hasPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ||
                 hasPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION))
         ) {
@@ -174,17 +174,26 @@ object TelemetryCollector {
         return NetworkInfo(netType, ssid, operator, ip)
     }
 
-    fun appendTelemetry(context: Context, payload: JSONObject, forceFreshGps: Boolean = false) {
-        val net = collectNetwork(context)
+    fun appendTelemetry(
+        context: Context,
+        payload: JSONObject,
+        forceFreshGps: Boolean = false,
+        includeLocation: Boolean = true
+    ) {
+        val net = collectNetwork(context, includeSsid = includeLocation)
         payload.put("network_type", net.networkType)
-        payload.put("wifi_ssid", net.wifiSsid)
+        if (includeLocation) {
+            payload.put("wifi_ssid", net.wifiSsid)
+        }
         payload.put("network_operator", net.networkOperator)
         payload.put("ip_address", net.ipAddress)
 
-        collectLocation(context, forceFreshGps)?.let { fix ->
-            payload.put("latitude", fix.latitude)
-            payload.put("longitude", fix.longitude)
-            fix.accuracy?.let { payload.put("location_accuracy", it.toDouble()) }
+        if (includeLocation) {
+            collectLocation(context, forceFreshGps)?.let { fix ->
+                payload.put("latitude", fix.latitude)
+                payload.put("longitude", fix.longitude)
+                fix.accuracy?.let { payload.put("location_accuracy", it.toDouble()) }
+            }
         }
 
         val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
